@@ -2,17 +2,55 @@ target_reference:
   id: aeon-mall-musashimurayama
   name: イオンモールむさし村山
   address: 東京都武蔵村山市榎1丁目1-3
+  latitude: 35.746390
+  longitude: 139.384750
+  coordinate_status: verified
+  coordinate_method: OpenStreetMap building polygon representative point
+  coordinate_sources:
+    - url: https://musashimurayama.aeonmall.jp/access
+      role: official_address_and_google_map_link
+    - url: https://www.google.com/maps/search/%E3%82%B7%E3%83%A7%E3%83%83%E3%83%94%E3%83%B3%E3%82%B0%2B%E3%83%A2%E3%83%BC%E3%83%AB%2B1%2BChome%2BEnoki%2BMusashimurayama/
+      latitude: 35.746438
+      longitude: 139.384813
+      role: facility_point
+    - url: https://www.openstreetmap.org/way/121874694
+      latitude: 35.746390
+      longitude: 139.384750
+      role: building_polygon_representative_point
+  coordinate_source_distance_m: 7.7
   gross_leasable_area_m2: 78000
-  source_url: https://www.aeonmall.com/facility/detail/1638/
-  official_mall_guide_url: https://musashimurayama.aeonmall.jp/guide
+  floor_area_source_url: https://www.aeonmall.com/facility/detail/1638/
+  verified_at: 2026-07-18
 
 competitor_candidates:
   - id: lalaport-tachikawa-tachihi
     name: ららぽーと立川立飛
-    address: 東京都立川市泉町935-1
-    latitude: null
-    longitude: null
-    registration_status: awaiting_coordinate_verification
+    address: 東京都立川市泉町935番地の1
+    alternate_addresses:
+      - 東京都立川市泉町935-1
+    latitude: 35.712380
+    longitude: 139.417400
+    coordinate_status: verified
+    coordinate_method: OpenStreetMap retail landuse polygon representative point
+    coordinate_sources:
+      - url: https://mitsui-shopping-park.com/lalaport/tachikawa/access/
+        role: official_address_and_google_map_link
+      - url: https://www.google.com/maps/search/%E3%82%89%E3%82%89%E3%81%BD%E3%83%BC%E3%81%A8%E7%AB%8B%E5%B7%9D%E7%AB%8B%E9%A3%9B
+        latitude: 35.712813
+        longitude: 139.418063
+        role: facility_point
+      - url: https://www.openstreetmap.org/way/385168096
+        latitude: 35.712380
+        longitude: 139.417400
+        role: retail_polygon_representative_point
+    coordinate_source_distance_m: 76.7
+    gross_leasable_area_m2: 63000
+    floor_area_source_url: https://mfshogyo.mitsuifudosan.co.jp/opening/list/lalaport_tachikawa.html
+    attractiveness_reference: 0.8076923077
+    registration_status: registered
+    verified_at: 2026-07-18
+    unresolved_fields:
+      - attractiveness_business_calibration
     source_url: https://mfshogyo.mitsuifudosan.co.jp/opening/list/lalaport_tachikawa.html
     retrieved_at: 2026-07-18
     confirmed_facts:
@@ -21,25 +59,37 @@ competitor_candidates:
       total_floor_area_m2: 162000
       parking_spaces: 3000
       opened: 2015-12
-    confirmed_fields:
-      - address
-      - gross_leasable_area_m2
-      - site_area_m2
-      - total_floor_area_m2
-      - parking_spaces
-      - opened
-    unverified_fields:
-      - latitude
-      - longitude
-      - attractiveness
-    attractiveness_reference: 0.8076923077
+    confirmed_fields: [address, gross_leasable_area_m2, site_area_m2, total_floor_area_m2, parking_spaces, opened, latitude, longitude]
+    unverified_fields: [attractiveness_business_calibration]
 
   - id: aeon-mall-hinode
     name: イオンモール日の出
-    address: 東京都西多摩郡日の出町大字平井字三吉野桜木237-3
-    latitude: null
-    longitude: null
-    registration_status: awaiting_coordinate_verification
+    address: 東京都西多摩郡日の出町大字平井字三吉野桜木237番地3
+    alternate_addresses:
+      - 東京都西多摩郡日の出町大字平井字三吉野桜木237-3
+    latitude: 35.734800
+    longitude: 139.275240
+    coordinate_status: verified
+    coordinate_method: OpenStreetMap retail polygon representative point
+    coordinate_sources:
+      - url: https://hinode.aeonmall.jp/access
+        role: official_address_and_google_map_link
+      - url: https://www.wikidata.org/wiki/Q11286138
+        latitude: 35.734806
+        longitude: 139.275111
+        role: independent_facility_coordinate
+      - url: https://www.openstreetmap.org/way/154286104
+        latitude: 35.734800
+        longitude: 139.275240
+        role: retail_polygon_representative_point
+    coordinate_source_distance_m: 11.7
+    gross_leasable_area_m2: 64000
+    floor_area_source_url: https://www.aeonmall.com/facility/detail/1654/
+    attractiveness_reference: 0.8205128205
+    registration_status: registered
+    verified_at: 2026-07-18
+    unresolved_fields:
+      - attractiveness_business_calibration
     source_url: https://www.aeonmall.com/facility/detail/1654/
     official_mall_guide_url: https://hinode.aeonmall.jp/guide
     retrieved_at: 2026-07-18
@@ -49,39 +99,50 @@ competitor_candidates:
       total_floor_area_m2: 124000
       parking_spaces: 3650
       opened: 2007-11-23
-    confirmed_fields:
-      - address
-      - gross_leasable_area_m2
-      - site_area_m2
-      - total_floor_area_m2
-      - parking_spaces
-      - opened
-    unverified_fields:
-      - latitude
-      - longitude
-      - attractiveness
-    attractiveness_reference: 0.8205128205
+    confirmed_fields: [address, gross_leasable_area_m2, site_area_m2, total_floor_area_m2, parking_spaces, opened, latitude, longitude]
+    unverified_fields: [attractiveness_business_calibration]
 
   - id: moritown
     name: モリタウン
-    address: 東京都昭島市田中町562-1付近
-    latitude: null
-    longitude: null
-    registration_status: awaiting_floor_area_and_coordinate_verification
-    source_url: null
+    address: 東京都昭島市代官山2-3-1
+    alternate_addresses:
+      - 東京都昭島市田中町562-1
+    address_notes: 2024年8月の住居表示実施により田中町562-1から代官山2-3-1へ変更。旧住所は履歴として保持。
+    latitude: 35.713640
+    longitude: 139.363060
+    coordinate_status: verified
+    coordinate_method: OpenStreetMap retail polygon representative point
+    coordinate_sources:
+      - url: https://www.moritown.com/access/
+        role: official_address_and_google_map_link
+      - url: https://www.google.com/maps/search/%E6%9D%B1%E4%BA%AC%E9%83%BD%E6%98%AD%E5%B3%B6%E5%B8%82%E4%BB%A3%E5%AE%98%E5%B1%B12-3-1%20%E3%83%A2%E3%83%AA%E3%82%BF%E3%82%A6%E3%83%B3%E6%9C%AC%E9%A4%A81F
+        latitude: 35.714313
+        longitude: 139.363188
+        role: facility_point
+      - url: https://www.openstreetmap.org/way/609723570
+        latitude: 35.713640
+        longitude: 139.363060
+        role: retail_polygon_representative_point
+      - url: https://www.city.akishima.lg.jp/_res/projects/default_project/_page_/001/001/682/old_and_new_table.pdf
+        role: official_old_new_address_table
+    coordinate_source_distance_m: 75.7
+    gross_leasable_area_m2: null
+    floor_area_source_url: null
+    attractiveness_reference: null
+    registration_status: awaiting_floor_area_verification
+    verified_at: 2026-07-18
+    unresolved_fields:
+      - gross_leasable_area_m2
+      - floor_area_source_url
+      - attractiveness
+    source_url: https://www.moritown.com/access/
     retrieved_at: 2026-07-18
     confirmed_facts: {}
-    confirmed_fields: []
-    unverified_fields:
-      - address
-      - gross_leasable_area_m2
-      - latitude
-      - longitude
-      - attractiveness
-    attractiveness_reference: null
+    confirmed_fields: [address, alternate_addresses, latitude, longitude]
+    unverified_fields: [gross_leasable_area_m2, attractiveness]
 
 attractiveness_reference_rule:
   formula: competitor_gross_leasable_area_m2 / target_gross_leasable_area_m2
   target_attractiveness: 1.0
-  status: reference_only_until_coordinate_verification
+  status: reference_only_pending_business_calibration
   limitations: 床面積だけを基準とする暫定モデル。ブランド力、テナント構成、駐車場、駅直結性、来館実績は未反映。

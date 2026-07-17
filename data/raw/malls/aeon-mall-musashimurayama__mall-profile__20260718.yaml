@@ -2,13 +2,36 @@
   "target_mall": {
     "id": "aeon-mall-musashimurayama",
     "name": "イオンモールむさし村山",
-    "latitude": 35.7465,
-    "longitude": 139.3850,
+    "latitude": 35.746390,
+    "longitude": 139.384750,
     "floor_area_m2": 78000,
     "attractiveness": 1.0,
-    "app_value": "coupon"
+    "app_value": "coupon",
+    "coordinate_status": "verified",
+    "coordinate_method": "OpenStreetMap building polygon representative point cross-checked against official-page-linked Google Maps facility point"
   },
-  "competitor_malls": [],
+  "competitor_malls": [
+    {
+      "id": "lalaport-tachikawa-tachihi",
+      "name": "ららぽーと立川立飛",
+      "latitude": 35.712380,
+      "longitude": 139.417400,
+      "floor_area_m2": 63000,
+      "attractiveness": 0.8077,
+      "attractiveness_method": "gross_leasable_area_ratio",
+      "coordinate_status": "verified"
+    },
+    {
+      "id": "aeon-mall-hinode",
+      "name": "イオンモール日の出",
+      "latitude": 35.734800,
+      "longitude": 139.275240,
+      "floor_area_m2": 64000,
+      "attractiveness": 0.8205,
+      "attractiveness_method": "gross_leasable_area_ratio",
+      "coordinate_status": "verified"
+    }
+  ],
   "analysis": {
     "radius_m": 10000,
     "geospatial_buffer_m": 1000,

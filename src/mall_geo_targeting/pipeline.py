@@ -22,7 +22,10 @@ def run(project_root: Path, data_mode: str | None = None, accessibility_mode: st
     analysis_config = load_yaml(project_root / "config" / "analysis.yaml")
     feature_config = load_yaml(project_root / "config" / "feature_weights.yaml")
     target = mall_from_dict(malls_config["target_mall"])
-    competitors = [mall_from_dict(value) for value in malls_config.get("competitor_malls", [])]
+    competitors = [
+        mall_from_dict(value, target_floor_area_m2=target.floor_area_m2)
+        for value in malls_config.get("competitor_malls", [])
+    ]
     analysis_radius_m = int(malls_config.get("analysis", {}).get("radius_m", analysis_config["radius_m"]))
     meshes = generate_meshes(target, analysis_radius_m, int(analysis_config["mesh_size_m"]))
     selected_mode = data_mode or str(analysis_config.get("data_mode", "sample"))

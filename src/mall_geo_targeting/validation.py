@@ -14,7 +14,7 @@ from typing import Any, Iterable
 
 from .analysis import generate_meshes, join_estat_statistics
 from .commercial import load_commercial_geojson
-from .config import load_yaml, mall_from_dict
+from .config import gross_leasable_area_ratio, load_yaml, mall_from_dict
 from .estat import load_estat_csv
 from .osm import LocalProjection, load_osm_geojson
 
@@ -191,8 +191,13 @@ def _bbox_contains(container: Iterable[float], required: Iterable[float]) -> boo
 def _validate_malls(path: Path, issues: list[ValidationIssue]) -> tuple[float, float] | None:
     try:
         config = load_yaml(path)
-        values = [config["target_mall"], *config.get("competitor_malls", [])]
-        malls = [mall_from_dict(value) for value in values]
+        target_value = config["target_mall"]
+        target = mall_from_dict(target_value)
+        competitor_values = config.get("competitor_malls", [])
+        competitors = [
+            mall_from_dict(value, target_floor_area_m2=target.floor_area_m2) for value in competitor_values
+        ]
+        malls = [target, *competitors]
     except (OSError, KeyError, TypeError, ValueError) as exc:
         _issue(issues, "ERROR", "malls", f"モール設定が不正です: {exc}")
         return None
@@ -205,8 +210,32 @@ def _validate_malls(path: Path, issues: list[ValidationIssue]) -> tuple[float, f
             _issue(issues, "ERROR", "malls", f"{mall.id}の緯度経度が範囲外です")
     if "app_value" not in config["target_mall"]:
         _issue(issues, "ERROR", "malls", "対象モールにapp_valueがありません")
-    target = malls[0]
+    if target_value.get("coordinate_status") != "verified":
+        _issue(issues, "WARNING", "malls", "対象モールの座標は未検証です")
+    required = {"id", "name", "latitude", "longitude", "floor_area_m2", "attractiveness", "coordinate_status"}
+    for value, mall in zip(competitor_values, competitors):
+        missing = sorted(required - value.keys())
+        if missing:
+            _issue(issues, "ERROR", "malls", f"{mall.id}の必須項目がありません: {', '.join(missing)}")
+        if value.get("coordinate_status") != "verified":
+            _issue(issues, "ERROR", "malls", f"{mall.id}のcoordinate_statusがverifiedではありません")
+        distance_m = _haversine_m(target.latitude, target.longitude, mall.latitude, mall.longitude)
+        if distance_m < 50:
+            _issue(issues, "ERROR", "malls", f"{mall.id}の座標が対象モールと異常に近接しています: {distance_m:.1f}m")
+        if value.get("attractiveness_method") == "gross_leasable_area_ratio":
+            expected = gross_leasable_area_ratio(mall.floor_area_m2, target.floor_area_m2)
+            configured = float(value["attractiveness"])
+            if not math.isclose(configured, expected, abs_tol=0.00005):
+                _issue(issues, "ERROR", "malls", f"{mall.id}のattractivenessが総賃貸面積比と一致しません")
     return target.latitude, target.longitude
+
+
+def _haversine_m(latitude1: float, longitude1: float, latitude2: float, longitude2: float) -> float:
+    phi1, phi2 = math.radians(latitude1), math.radians(latitude2)
+    delta_phi = math.radians(latitude2 - latitude1)
+    delta_lambda = math.radians(longitude2 - longitude1)
+    value = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    return 2 * 6_371_000 * math.asin(math.sqrt(value))
 
 
 def validate_competitor_candidates(candidates_path: Path, malls_path: Path) -> list[ValidationIssue]:
@@ -248,21 +277,31 @@ def validate_competitor_candidates(candidates_path: Path, malls_path: Path) -> l
         if not isinstance(facts, dict):
             _issue(issues, "ERROR", "competitor_candidates", f"{identifier}のconfirmed_factsが不正です")
             continue
-        floor_area = facts.get("gross_leasable_area_m2")
+        floor_area = candidate.get("gross_leasable_area_m2")
         if floor_area is not None and (not isinstance(floor_area, (int, float)) or floor_area <= 0):
             _issue(issues, "ERROR", "competitor_candidates", f"{identifier}の総賃貸面積が不正です")
         status = candidate.get("registration_status")
-        if status == "awaiting_coordinate_verification" and floor_area is None:
+        if status in {"awaiting_coordinate_verification", "registered"} and floor_area is None:
             _issue(issues, "ERROR", "competitor_candidates", f"{identifier}に分析用床面積がありません")
         if status not in {
             "awaiting_coordinate_verification",
             "awaiting_floor_area_and_coordinate_verification",
+            "awaiting_floor_area_verification",
             "ready_for_registration",
+            "registered",
         }:
             _issue(issues, "ERROR", "competitor_candidates", f"{identifier}のregistration_statusが不正です")
         source_url = candidate.get("source_url")
         if facts and (not isinstance(source_url, str) or not source_url.startswith("https://")):
             _issue(issues, "ERROR", "competitor_candidates", f"{identifier}に確認済み情報のsource_urlがありません")
+        if candidate.get("coordinate_status") == "verified":
+            if candidate.get("latitude") is None or candidate.get("longitude") is None:
+                _issue(issues, "ERROR", "competitor_candidates", f"{identifier}の検証済み座標がありません")
+            if not isinstance(candidate.get("coordinate_sources"), list) or len(candidate["coordinate_sources"]) < 2:
+                _issue(issues, "ERROR", "competitor_candidates", f"{identifier}の座標参照元が不足しています")
+            distance = candidate.get("coordinate_source_distance_m")
+            if not isinstance(distance, (int, float)) or not 0 <= distance <= 150:
+                _issue(issues, "ERROR", "competitor_candidates", f"{identifier}の参照元間距離が不正です")
     duplicates = sorted({identifier for identifier in candidate_ids if candidate_ids.count(identifier) > 1})
     if duplicates:
         _issue(issues, "ERROR", "competitor_candidates", f"候補IDが重複しています: {', '.join(duplicates)}")
@@ -270,11 +309,29 @@ def validate_competitor_candidates(candidates_path: Path, malls_path: Path) -> l
         identifier = str(registered.get("id", ""))
         candidate = by_id.get(identifier)
         if candidate is not None and (
-            candidate.get("registration_status") != "ready_for_registration"
+            candidate.get("registration_status") not in {"ready_for_registration", "registered"}
+            or candidate.get("coordinate_status") != "verified"
+            or registered.get("coordinate_status") != "verified"
             or candidate.get("latitude") is None
             or candidate.get("longitude") is None
         ):
             _issue(issues, "ERROR", "competitor_candidates", f"座標未確認の候補をcompetitor_mallsへ登録できません: {identifier}")
+            continue
+        if candidate is not None:
+            if registered.get("coordinate_status") != "verified":
+                _issue(issues, "ERROR", "competitor_candidates", f"本番競合の座標検証状態が不正です: {identifier}")
+            try:
+                distance_m = _haversine_m(
+                    float(candidate["latitude"]),
+                    float(candidate["longitude"]),
+                    float(registered["latitude"]),
+                    float(registered["longitude"]),
+                )
+            except (KeyError, TypeError, ValueError):
+                _issue(issues, "ERROR", "competitor_candidates", f"本番競合の座標が不正です: {identifier}")
+            else:
+                if distance_m > 1:
+                    _issue(issues, "ERROR", "competitor_candidates", f"候補台帳と本番競合の座標が一致しません: {identifier}")
     return issues
 
 

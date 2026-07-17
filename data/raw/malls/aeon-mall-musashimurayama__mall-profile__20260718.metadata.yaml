@@ -7,14 +7,21 @@
   "commercial_use_allowed": true,
   "attribution_required": true,
   "retrieved_at": "2026-07-18",
-  "coverage_area": [139.3849, 35.7464, 139.3851, 35.7466],
+  "coverage_area": [139.3847, 35.7463, 139.3848, 35.7465],
   "processing": "公式確認値のうち総賃貸面積約78,000㎡をHuffモデルの分析用規模値floor_area_m2として採用。敷地面積、延床面積、駐車台数、開業年月、専門店数は監査用facility_factsとして保持。",
   "is_sample": false,
   "provisional_fields": [
-    "target_mall.latitude",
-    "target_mall.longitude",
     "target_mall.attractiveness"
   ],
-  "provisional_notes": "中心座標35.7465,139.3850は暫定値であり、OSMまたは公式地図で再確認が必要。attractiveness=1.0はモデル初期値で、実測・業務判断による校正前。",
-  "source_verification_notes": "施設基本情報はイオンモール公式施設概要で確認済み。中心座標は引き続き暫定。サイト利用条件と事実情報の利用方法は実運用前に確認する。"
+  "provisional_notes": "attractiveness=1.0はモデル初期値で、実測・業務判断による校正前。",
+  "source_verification_notes": "施設基本情報はイオンモール公式施設概要で確認済み。中心座標は公式アクセスページの住所・Google Maps施設点とOpenStreetMap建物Polygonを照合済み。サイト利用条件と事実情報の利用方法は実運用前に確認する。",
+  "coordinate_status": "verified",
+  "coordinate_method": "OpenStreetMap way 121874694の建物Polygon代表点を採用し、公式アクセスページから案内されるGoogle Maps施設点と照合",
+  "coordinate_sources": [
+    "https://musashimurayama.aeonmall.jp/access",
+    "https://www.google.com/maps/search/%E3%82%B7%E3%83%A7%E3%83%83%E3%83%94%E3%83%B3%E3%82%B0%2B%E3%83%A2%E3%83%BC%E3%83%AB%2B1%2BChome%2BEnoki%2BMusashimurayama/",
+    "https://www.openstreetmap.org/way/121874694"
+  ],
+  "coordinate_source_distance_m": 7.7,
+  "verified_at": "2026-07-18"
 }

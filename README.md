@@ -114,13 +114,13 @@ python -m mall_geo_targeting.validation --project-root . --require-real
 ### 現在固定している対象モール
 
 - イオンモールむさし村山
-- 暫定中心座標：`35.7465, 139.3850`
+- 検証済み中心座標：`35.746390, 139.384750`
 - 分析用規模値：総賃貸面積約78,000㎡
 - `app_value`: `coupon`
 - 初期分析半径：10,000m
 - OSM・商業POI取得範囲：中心から11,000m以上
 
-座標と`attractiveness=1.0`は暫定値です。OSMまたは公式地図による座標確認と、魅力度係数の業務レビューが終わるまでvalidatorが警告します。競合候補は`data/raw/malls/competitor_candidates.yaml`で管理し、信頼できる住所、地図上で確認した中心座標、分析用床面積、情報源、取得日、暫定項目が揃うまで分析設定へ追加しません。座標未確認の候補が`competitor_malls`へ入るとvalidatorがエラーにします。
+対象モールの中心座標は公式アクセス情報とOSM建物Polygonで検証済みです。`attractiveness=1.0`は引き続き暫定値で、魅力度係数の業務レビューが終わるまでvalidatorが警告します。競合候補は`data/raw/malls/competitor_candidates.yaml`で管理し、信頼できる住所、地図上で確認した中心座標、分析用床面積、情報源、取得日、暫定項目が揃うまで分析設定へ追加しません。座標未確認の候補が`competitor_malls`へ入るとvalidatorがエラーにします。
 
 競合attractivenessの初期参考値は、対象を`1.0`として`競合の総賃貸面積 / 対象の総賃貸面積`で計算します。ただし床面積だけの暫定モデルで、ブランド力、テナント構成、駐車場、駅直結性、来館実績は未反映です。座標確認前は参考値を本番設定へ適用しません。
 
