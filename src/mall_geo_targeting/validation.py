@@ -88,6 +88,14 @@ def _validate_metadata(
         _issue(issues, "ERROR", source_name, "is_sampleは真偽値で指定してください")
     if metadata["commercial_use_allowed"] is not True:
         _issue(issues, "ERROR" if require_real else "WARNING", source_name, "商用利用可能であることを確認できません")
+    provisional_fields = metadata.get("provisional_fields", [])
+    if provisional_fields:
+        _issue(
+            issues,
+            "WARNING",
+            source_name,
+            f"暫定値を人手で再確認してください: {', '.join(str(value) for value in provisional_fields)}",
+        )
 
 
 def _valid_bbox(value: Any) -> bool:
@@ -234,13 +242,16 @@ def validate_inputs(project_root: Path, require_real: bool = False) -> Validatio
 
     target = _validate_malls(paths["malls"], issues) if paths["malls"].is_file() else None
     analysis_config = load_yaml(project_root / "config" / "analysis.yaml")
+    mall_document = load_yaml(paths["malls"]) if paths["malls"].is_file() else {}
+    mall_analysis = mall_document.get("analysis", {})
+    analysis_radius_m = int(mall_analysis.get("radius_m", analysis_config["radius_m"]))
     target_mall = None
     if target is not None:
         target_mall = mall_from_dict(load_yaml(paths["malls"])["target_mall"])
     if paths["estat"].is_file() and target_mall is not None:
         try:
             statistics = load_estat_csv(paths["estat"], analysis_config["estat"])
-            meshes = generate_meshes(target_mall, int(analysis_config["radius_m"]), int(analysis_config["mesh_size_m"]))
+            meshes = generate_meshes(target_mall, analysis_radius_m, int(analysis_config["mesh_size_m"]))
             join_estat_statistics(meshes, statistics)
             coverage_ratio = sum(mesh.source_standard_mesh_code is not None for mesh in meshes) / len(meshes)
             minimum = float(requirements.get("minimum_estat_mesh_coverage_ratio", 0.80))
@@ -251,8 +262,8 @@ def validate_inputs(project_root: Path, require_real: bool = False) -> Validatio
             _issue(issues, "ERROR", "estat", str(exc))
 
     if target is not None:
-        buffer_m = float(requirements.get("geospatial_coverage_buffer_m", 1000))
-        required_bbox = _required_bbox(target[0], target[1], float(analysis_config["radius_m"]) + buffer_m)
+        buffer_m = float(mall_analysis.get("geospatial_buffer_m", requirements.get("geospatial_coverage_buffer_m", 1000)))
+        required_bbox = _required_bbox(target[0], target[1], analysis_radius_m + buffer_m)
         projection = LocalProjection(target[0], target[1])
         for source_name in ("osm", "commercial"):
             if not paths[source_name].is_file():

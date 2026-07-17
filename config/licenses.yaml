@@ -2,14 +2,15 @@
   "datasets": [
     {
       "name": "モール基本情報設定",
-      "source": "同梱設定は模擬データ。実データ導入時に確認元へ置換",
-      "url": null,
-      "license": "プロジェクト内模擬データ",
+      "source": "イオンモール公式施設概要",
+      "url": "https://www.aeonmall.com/facility/detail/1638/",
+      "official_mall_url": "https://musashimurayama.aeonmall.jp/",
+      "license": "公式公開情報。サイト利用条件を実運用前に再確認",
       "commercial_use_allowed": true,
-      "attribution_required": false,
-      "retrieved_at": null,
-      "processing": "対象・競合モールの位置、床面積、魅力度、app_valueを分析設定へ整形する。",
-      "note": "実モール投入時は施設公式情報等の確認元、確認日、利用条件を記録する。"
+      "attribution_required": true,
+      "retrieved_at": "2026-07-18",
+      "processing": "総賃貸面積約78,000㎡を分析用規模値とし、対象モールの位置、魅力度初期値、app_valueを分析設定へ整形する。",
+      "note": "施設基本情報はイオンモール公式施設概要で確認済み。中心座標とattractivenessは暫定。サイト利用条件と事実情報の利用方法は実運用前に確認する。"
     },
     {
       "name": "e-Stat 地域メッシュ統計（国勢調査人口等基本集計）",

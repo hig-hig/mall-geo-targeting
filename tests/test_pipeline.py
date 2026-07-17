@@ -36,21 +36,10 @@ def test_estat_mode_runs_without_replacing_sample_default() -> None:
     assert result["scored_count"] > 0
     geojson = json.loads(result["outputs"]["geojson"].read_text(encoding="utf-8"))
     matched = [f for f in geojson["features"] if f["properties"]["source_table_id"]]
-    assert matched
-    assert all(f["properties"]["standard_mesh_code"] for f in matched)
-    demographic = next(
-        f for f in matched
-        if f["properties"]["population"] and f["properties"]["household_count"]
-    )
-    assert "target_age_population_index" in demographic["properties"]["used_features"]
-    assert "household_composition_index" in demographic["properties"]["used_features"]
-    assert "accessibility_index" in demographic["properties"]["missing_features"]
-    assert "smartphone_affinity" not in demographic["properties"]["used_features"]
-    assert demographic["properties"]["score_coverage"] == 0.65
-    assert demographic["properties"]["score_quality_tier"] == "B"
-    assert demographic["properties"]["required_feature_gate_passed"] is False
-    assert demographic["properties"]["required_groups_missing"] == ["context"]
-    assert demographic["properties"]["eligible_for_delivery"] is False
+    # The checked-in e-Stat fixture covers the former synthetic Tokyo Bay mall,
+    # not the real-data candidate in Musashimurayama. It must not be joined by accident.
+    assert matched == []
+    assert result["demographic_missing_count"] == result["mesh_count"]
 
     huff_only = [
         f for f in geojson["features"]

@@ -1,0 +1,25 @@
+{
+  "target_mall": {
+    "id": "aeon-mall-musashimurayama",
+    "name": "イオンモールむさし村山",
+    "latitude": 35.7465,
+    "longitude": 139.3850,
+    "floor_area_m2": 78000,
+    "attractiveness": 1.0,
+    "app_value": "coupon"
+  },
+  "competitor_malls": [],
+  "analysis": {
+    "radius_m": 10000,
+    "geospatial_buffer_m": 1000,
+    "required_geospatial_radius_m": 11000
+  },
+  "facility_facts": {
+    "site_area_m2_approx": 137000,
+    "total_floor_area_m2_approx": 150000,
+    "gross_leasable_area_m2_approx": 78000,
+    "parking_spaces_approx": 4000,
+    "opened": "2006-11",
+    "specialty_store_count_approx": 180
+  }
+}

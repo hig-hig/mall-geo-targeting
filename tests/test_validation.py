@@ -11,14 +11,17 @@ def test_sample_inputs_validate_with_explicit_warnings() -> None:
     assert report.errors == []
     warned_sources = {issue.source for issue in report.warnings}
     assert {"malls", "estat", "osm", "commercial"} <= warned_sources
-    assert sum("サンプルデータ" in issue.message for issue in report.warnings) == 4
+    assert sum("サンプルデータ" in issue.message for issue in report.warnings) == 3
+    assert any(issue.source == "malls" and "暫定値" in issue.message for issue in report.warnings)
 
 
 def test_require_real_rejects_samples_and_incomplete_coverage() -> None:
     root = Path(__file__).parents[1]
     report = validate_inputs(root, require_real=True)
     assert report.errors
-    assert {"malls", "estat", "osm", "commercial"} <= {issue.source for issue in report.errors}
+    assert {"estat", "osm", "commercial"} <= {issue.source for issue in report.errors}
+    assert not any(issue.source == "malls" and "サンプルデータ" in issue.message for issue in report.errors)
+    assert any(issue.source == "malls" and "暫定値" in issue.message for issue in report.warnings)
     assert any("Feature ID" in issue.message for issue in report.errors)
     assert any("coverage" in issue.message or "覆っていません" in issue.message for issue in report.errors)
 

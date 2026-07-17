@@ -1,0 +1,20 @@
+{
+  "dataset_name": "イオンモールむさし村山 施設基本情報",
+  "source": "イオンモール公式施設概要",
+  "source_url": "https://www.aeonmall.com/facility/detail/1638/",
+  "official_mall_url": "https://musashimurayama.aeonmall.jp/",
+  "license": "公式公開情報。事実情報の分析利用。サイト利用条件と出典表記は実運用前に再確認する。",
+  "commercial_use_allowed": true,
+  "attribution_required": true,
+  "retrieved_at": "2026-07-18",
+  "coverage_area": [139.3849, 35.7464, 139.3851, 35.7466],
+  "processing": "公式確認値のうち総賃貸面積約78,000㎡をHuffモデルの分析用規模値floor_area_m2として採用。敷地面積、延床面積、駐車台数、開業年月、専門店数は監査用facility_factsとして保持。",
+  "is_sample": false,
+  "provisional_fields": [
+    "target_mall.latitude",
+    "target_mall.longitude",
+    "target_mall.attractiveness"
+  ],
+  "provisional_notes": "中心座標35.7465,139.3850は暫定値であり、OSMまたは公式地図で再確認が必要。attractiveness=1.0はモデル初期値で、実測・業務判断による校正前。",
+  "source_verification_notes": "施設基本情報はイオンモール公式施設概要で確認済み。中心座標は引き続き暫定。サイト利用条件と事実情報の利用方法は実運用前に確認する。"
+}

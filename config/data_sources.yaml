@@ -7,8 +7,8 @@
   },
   "sources": {
     "malls": {
-      "path": "config/malls.yaml",
-      "metadata_path": "data/raw/malls/sample_malls.metadata.yaml",
+      "path": "data/raw/malls/aeon-mall-musashimurayama__mall-profile__20260718.yaml",
+      "metadata_path": "data/raw/malls/aeon-mall-musashimurayama__mall-profile__20260718.metadata.yaml",
       "format": "mall_yaml",
       "license_record_name": "モール基本情報設定"
     },
