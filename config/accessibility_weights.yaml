@@ -1,0 +1,18 @@
+{
+  "weights": {
+    "mall_proximity": 0.25,
+    "major_road_density": 0.20,
+    "walkable_road_density": 0.20,
+    "station_proximity": 0.15,
+    "bus_stop_proximity": 0.10,
+    "parking_availability": 0.10
+  },
+  "thresholds": {
+    "mall_max_distance_m": 3000,
+    "station_max_distance_m": 2000,
+    "bus_stop_max_distance_m": 1000,
+    "major_road_saturation_m_per_km2": 8000,
+    "walkable_road_saturation_m_per_km2": 12000,
+    "parking_count_saturation": 3
+  }
+}

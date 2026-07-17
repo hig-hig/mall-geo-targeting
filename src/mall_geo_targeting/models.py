@@ -73,6 +73,15 @@ class Mesh:
     target_age_population_index: float | None = None
     household_composition_index: float | None = None
     accessibility_index: float | None = None
+    road_length_m: float | None = None
+    major_road_length_m: float | None = None
+    walkable_road_length_m: float | None = None
+    nearest_station_distance_m: float | None = None
+    nearest_bus_stop_distance_m: float | None = None
+    parking_count: int | None = None
+    straight_line_distance_to_mall_m: float | None = None
+    accessibility_coverage: float | None = None
+    accessibility_used_components: list[str] = field(default_factory=list)
     commercial_concentration_index: float | None = None
     # Deprecated input retained only for backward-compatible CSV ingestion.
     # It is never used by the Step 3 score.

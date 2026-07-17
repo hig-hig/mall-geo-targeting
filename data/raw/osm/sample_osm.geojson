@@ -1,0 +1,16 @@
+{
+  "type": "FeatureCollection",
+  "name": "Synthetic OSM-like accessibility fixtures",
+  "crs": {"type": "name", "properties": {"name": "EPSG:4326"}},
+  "features": [
+    {"type": "Feature", "properties": {"highway": "primary", "name": "模擬幹線道路"}, "geometry": {"type": "LineString", "coordinates": [[139.724, 35.655], [139.788, 35.655]]}},
+    {"type": "Feature", "properties": {"highway": "secondary", "name": "模擬南北道路"}, "geometry": {"type": "LineString", "coordinates": [[139.756, 35.628], [139.756, 35.682]]}},
+    {"type": "Feature", "properties": {"highway": "residential", "name": "模擬生活道路1"}, "geometry": {"type": "LineString", "coordinates": [[139.735, 35.648], [139.778, 35.666]]}},
+    {"type": "Feature", "properties": {"highway": "footway", "name": "模擬歩道"}, "geometry": {"type": "LineString", "coordinates": [[139.740, 35.665], [139.770, 35.642]]}},
+    {"type": "Feature", "properties": {"railway": "station", "name": "模擬ベイ駅"}, "geometry": {"type": "Point", "coordinates": [139.752, 35.657]}},
+    {"type": "Feature", "properties": {"highway": "bus_stop", "name": "模擬モール前"}, "geometry": {"type": "Point", "coordinates": [139.757, 35.654]}},
+    {"type": "Feature", "properties": {"public_transport": "platform", "name": "模擬北口"}, "geometry": {"type": "Point", "coordinates": [139.754, 35.661]}},
+    {"type": "Feature", "properties": {"amenity": "parking", "name": "模擬駐車場A"}, "geometry": {"type": "Point", "coordinates": [139.758, 35.655]}},
+    {"type": "Feature", "properties": {"amenity": "parking", "name": "模擬駐車場B"}, "geometry": {"type": "Polygon", "coordinates": [[[139.753, 35.652], [139.754, 35.652], [139.754, 35.653], [139.753, 35.653], [139.753, 35.652]]]}}
+  ]
+}

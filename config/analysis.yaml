@@ -4,6 +4,7 @@
   "huff_distance_exponent": 2.0,
   "high_score_quantile": 0.8,
   "data_mode": "sample",
+  "accessibility_mode": "sample",
   "population_path": "data/sample_population.csv",
   "estat": {
     "path": "data/raw/estat/sample_estat_population.csv",

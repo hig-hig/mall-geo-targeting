@@ -9,11 +9,12 @@ from .analysis import assign_delivery_zones, calculate_huff, calculate_potential
 from .config import load_yaml, mall_from_dict
 from .estat import load_estat_csv
 from .output import write_outputs
+from .osm import LocalProjection, calculate_osm_accessibility, load_osm_geojson
 
 LOGGER = logging.getLogger(__name__)
 
 
-def run(project_root: Path, data_mode: str | None = None) -> dict[str, object]:
+def run(project_root: Path, data_mode: str | None = None, accessibility_mode: str | None = None) -> dict[str, object]:
     malls_config = load_yaml(project_root / "config" / "malls.yaml")
     analysis_config = load_yaml(project_root / "config" / "analysis.yaml")
     feature_config = load_yaml(project_root / "config" / "feature_weights.yaml")
@@ -31,6 +32,18 @@ def run(project_root: Path, data_mode: str | None = None) -> dict[str, object]:
         join_estat_statistics(meshes, statistics)
     else:
         raise ValueError(f"未対応のdata_modeです: {selected_mode!r} (sampleまたはestat)")
+    selected_accessibility_mode = accessibility_mode or str(analysis_config.get("accessibility_mode", "sample"))
+    if selected_accessibility_mode == "osm":
+        osm_config = load_yaml(project_root / "config" / "osm.yaml")
+        accessibility_config = load_yaml(project_root / "config" / "accessibility_weights.yaml")
+        projection = LocalProjection(target.latitude, target.longitude)
+        osm_data = load_osm_geojson(project_root / str(osm_config["path"]), osm_config, projection)
+        calculate_osm_accessibility(meshes, target, osm_data, projection, accessibility_config)
+    elif selected_accessibility_mode == "none":
+        for mesh in meshes:
+            mesh.accessibility_index = None
+    elif selected_accessibility_mode != "sample":
+        raise ValueError(f"未対応のaccessibility_modeです: {selected_accessibility_mode!r} (sample、osm、none)")
     calculate_huff(meshes, target, competitors, float(analysis_config["huff_distance_exponent"]))
     presets = feature_config.get("presets", {})
     if target.app_value not in presets:
@@ -49,6 +62,7 @@ def run(project_root: Path, data_mode: str | None = None) -> dict[str, object]:
         tier: sum(mesh.score_quality_tier == tier for mesh in meshes)
         for tier in ("A", "B", "C", "D")
     }
-    result = {"data_mode": selected_mode, "mesh_count": len(meshes), "scored_count": sum(m.acquisition_potential_score is not None for m in meshes), "eligible_count": sum(m.eligible_for_delivery for m in meshes), "excluded_by_coverage_count": sum(m.acquisition_potential_score is not None and not m.eligible_for_delivery for m in meshes), "quality_counts": quality_counts, "delivery_zone_count": sum(m.is_delivery_zone for m in meshes), "threshold": threshold, "outputs": paths}
+    accessibility_coverages = [m.accessibility_coverage for m in meshes if m.accessibility_coverage is not None]
+    result = {"data_mode": selected_mode, "accessibility_mode": selected_accessibility_mode, "mesh_count": len(meshes), "scored_count": sum(m.acquisition_potential_score is not None for m in meshes), "eligible_count": sum(m.eligible_for_delivery for m in meshes), "excluded_by_coverage_count": sum(m.acquisition_potential_score is not None and not m.eligible_for_delivery for m in meshes), "quality_counts": quality_counts, "accessibility_coverage_count": len(accessibility_coverages), "mean_accessibility_coverage": round(sum(accessibility_coverages) / len(accessibility_coverages), 6) if accessibility_coverages else None, "delivery_zone_count": sum(m.is_delivery_zone for m in meshes), "threshold": threshold, "outputs": paths}
     LOGGER.info("パイプライン完了: %s", result)
     return result

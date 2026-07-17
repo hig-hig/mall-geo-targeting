@@ -1,0 +1,5 @@
+# OpenStreetMap手動取得GeoJSONの配置先
+
+利用者が手動取得したOpenStreetMap由来GeoJSONを配置します。パイプラインは外部APIやOverpass APIを呼びません。
+
+`sample_osm.geojson`は処理確認用に作成した模擬形状・模擬タグであり、OpenStreetMapから取得した実データではありません。実データ利用時はODbL、出典表示、加工データベースの提供条件を確認してください。

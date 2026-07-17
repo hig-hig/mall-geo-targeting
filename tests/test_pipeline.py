@@ -56,3 +56,27 @@ def test_estat_mode_runs_without_replacing_sample_default() -> None:
     assert all(f["properties"]["score_quality_tier"] == "D" for f in huff_only)
     assert all(f["properties"]["eligible_for_delivery"] is False for f in huff_only)
     assert all(f["properties"]["is_delivery_zone"] is False for f in huff_only)
+
+
+def test_estat_and_osm_modes_can_run_together() -> None:
+    root = Path(__file__).parents[1]
+    result = run(root, data_mode="estat", accessibility_mode="osm")
+    assert result["data_mode"] == "estat"
+    assert result["accessibility_mode"] == "osm"
+    assert result["accessibility_coverage_count"] == result["mesh_count"]
+    assert result["mean_accessibility_coverage"] == 1.0
+    geojson = json.loads(result["outputs"]["geojson"].read_text(encoding="utf-8"))
+    properties = geojson["features"][0]["properties"]
+    assert properties["accessibility_index"] is not None
+    assert properties["straight_line_distance_to_mall_m"] is not None
+    assert properties["accessibility_used_components"]
+    assert "accessibility_index" in properties["used_features"]
+
+
+def test_osm_mode_overrides_deprecated_sample_accessibility() -> None:
+    root = Path(__file__).parents[1]
+    run(root, data_mode="sample", accessibility_mode="osm")
+    geojson = json.loads((root / "outputs" / "delivery_zones.geojson").read_text(encoding="utf-8"))
+    properties = geojson["features"][0]["properties"]
+    assert properties["accessibility_coverage"] == 1.0
+    assert properties["accessibility_used_components"]

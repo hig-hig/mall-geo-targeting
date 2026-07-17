@@ -1,0 +1,12 @@
+{
+  "path": "data/raw/osm/sample_osm.geojson",
+  "crs": "EPSG:4326",
+  "tags": {
+    "roads": {"key": "highway", "values": ["motorway", "trunk", "primary", "secondary", "tertiary", "residential", "living_street", "service", "footway", "path", "pedestrian"]},
+    "major_roads": {"key": "highway", "values": ["motorway", "trunk", "primary", "secondary"]},
+    "walkable_roads": {"key": "highway", "values": ["residential", "living_street", "service", "footway", "path", "pedestrian"]},
+    "stations": [{"key": "railway", "values": ["station", "halt"]}, {"key": "public_transport", "values": ["station"]}],
+    "bus_stops": [{"key": "highway", "values": ["bus_stop"]}, {"key": "public_transport", "values": ["platform"]}],
+    "parking": [{"key": "amenity", "values": ["parking"]}]
+  }
+}
