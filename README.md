@@ -50,6 +50,67 @@ mall-geo-targeting --project-root . --accessibility-mode none --commercial-mode 
 pytest
 ```
 
+## 実データ投入前の準備と検査
+
+外部データはパイプライン中に自動取得しません。対象モールを決めた後、利用者が手動で取得・確認したファイルを`data/raw/`へ配置します。命名規則、用途別の必須項目、metadata仕様の詳細は`data/raw/README.md`を参照してください。
+
+### 必要なファイル
+
+```text
+data/raw/malls/{mall_slug}__mall-profile__YYYYMMDD.yaml
+data/raw/malls/{mall_slug}__mall-profile__YYYYMMDD.metadata.yaml
+data/raw/estat/{mall_slug}__estat-population-mesh__YYYYMMDD.csv
+data/raw/estat/{mall_slug}__estat-population-mesh__YYYYMMDD.metadata.yaml
+data/raw/osm/{mall_slug}__osm-features__YYYYMMDD.geojson
+data/raw/osm/{mall_slug}__osm-features__YYYYMMDD.metadata.yaml
+data/raw/commercial/{mall_slug}__commercial-poi__YYYYMMDD.geojson
+data/raw/commercial/{mall_slug}__commercial-poi__YYYYMMDD.metadata.yaml
+```
+
+OSM GeoJSONと商業POIが同一ファイルの場合でも、`config/data_sources.yaml`で利用ファイルとmetadataを明示します。データ本体、metadata、処理別設定、`config/licenses.yaml`を一組として更新してください。
+
+### metadata
+
+各データセットに次の項目が必要です。
+
+```yaml
+dataset_name: データセット名
+source: 提供者・統計名
+source_url: 取得元URL
+license: ライセンス・利用規約
+commercial_use_allowed: true
+attribution_required: true
+retrieved_at: YYYY-MM-DD
+coverage_area: [西端経度, 南端緯度, 東端経度, 北端緯度]
+processing: 抽出・変換・加工内容
+is_sample: false
+```
+
+`is_sample: false`へ書き換えるだけでは実データになりません。取得元、日付、範囲、ライセンス、実ファイルの内容が一致している必要があります。
+
+### validator
+
+```bash
+python -m mall_geo_targeting.validation --project-root .
+python -m mall_geo_targeting.validation --project-root . --require-real
+```
+
+インストールし直した環境では`mall-validate-inputs`コマンドも利用できます。validatorは次を検査します。
+
+- データ本体とmetadataの存在
+- YAML、CSV、JSON、GeoJSONとしての読込
+- モール設定、e-Stat列、OSMタグ、商業分類の必須項目
+- WGS84座標系と緯度経度範囲
+- モールID、標準メッシュコード、GeoJSON Feature IDの重複
+- e-Statが対象分析メッシュを覆う割合
+- GeoJSONが分析半径＋最近接探索bufferを覆うか
+- `retrieved_at`の日付形式
+- metadataの商用利用可否・出典表示
+- `config/licenses.yaml`の対応記録
+- サンプルデータの誤使用
+
+通常検査では同梱サンプルを警告として扱います。実分析前は必ず`--require-real`を使用し、エラー0件を確認してください。パイプラインもサンプルモードまたはサンプルmetadataを検出するとログへ警告します。
+
 ## 設定と算出仕様
 
 - `config/malls.yaml`: 対象・競合モールの位置、床面積、魅力度係数、対象モールの`app_value`
@@ -382,3 +443,7 @@ outputs/ 生成物
 src/     Pythonパッケージ
 tests/   pytest
 ```
+
+## 保留中の機能
+
+Google広告向け円形ゾーン生成は、実データを投入した地図、coverage、必須特徴量ゲート、配信候補の妥当性を確認した後に再検討します。現時点ではGoogle広告への接続やゾーン生成を実装していません。

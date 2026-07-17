@@ -1,0 +1,12 @@
+{
+  "dataset_name": "模擬e-Stat地域メッシュ人口",
+  "source": "e-Stat形式を模してプロジェクト内で作成",
+  "source_url": null,
+  "license": "プロジェクト内模擬データ",
+  "commercial_use_allowed": true,
+  "attribution_required": false,
+  "retrieved_at": "2026-07-17",
+  "coverage_area": [139.74, 35.64, 139.77, 35.67],
+  "processing": "欠損・秘匿・対象外・ゼロの読込試験用。政府統計の実数値ではない。",
+  "is_sample": true
+}

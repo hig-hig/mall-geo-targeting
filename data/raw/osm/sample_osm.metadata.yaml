@@ -1,0 +1,12 @@
+{
+  "dataset_name": "模擬OSM形式地物",
+  "source": "OSM形式を模してプロジェクト内で作成",
+  "source_url": null,
+  "license": "プロジェクト内模擬データ（実OSMデータではない）",
+  "commercial_use_allowed": true,
+  "attribution_required": false,
+  "retrieved_at": "2026-07-17",
+  "coverage_area": [139.724, 35.628, 139.788, 35.682],
+  "processing": "道路・交通・駐車場・商業POIの読込試験用模擬形状。",
+  "is_sample": true
+}

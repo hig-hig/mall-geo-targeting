@@ -1,6 +1,17 @@
 {
   "datasets": [
     {
+      "name": "モール基本情報設定",
+      "source": "同梱設定は模擬データ。実データ導入時に確認元へ置換",
+      "url": null,
+      "license": "プロジェクト内模擬データ",
+      "commercial_use_allowed": true,
+      "attribution_required": false,
+      "retrieved_at": null,
+      "processing": "対象・競合モールの位置、床面積、魅力度、app_valueを分析設定へ整形する。",
+      "note": "実モール投入時は施設公式情報等の確認元、確認日、利用条件を記録する。"
+    },
+    {
       "name": "e-Stat 地域メッシュ統計（国勢調査人口等基本集計）",
       "source": "政府統計の総合窓口 e-Stat",
       "url": "https://www.e-stat.go.jp/gis/statmap-search?page=1&type=1&toukeiCode=00200521",

@@ -1,0 +1,12 @@
+{
+  "dataset_name": "模擬モール基本情報",
+  "source": "プロジェクト内で作成した模擬設定",
+  "source_url": null,
+  "license": "プロジェクト内模擬データ",
+  "commercial_use_allowed": true,
+  "attribution_required": false,
+  "retrieved_at": "2026-07-17",
+  "coverage_area": [139.7520, 35.6550, 139.7790, 35.6700],
+  "processing": "MVP動作確認用の対象・競合モール設定。実在施設情報ではない。",
+  "is_sample": true
+}

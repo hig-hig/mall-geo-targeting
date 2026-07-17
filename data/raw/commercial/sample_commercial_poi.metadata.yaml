@@ -1,0 +1,12 @@
+{
+  "dataset_name": "模擬商業POI",
+  "source": "商業POI形式を模してプロジェクト内で作成",
+  "source_url": null,
+  "license": "プロジェクト内模擬データ",
+  "commercial_use_allowed": true,
+  "attribution_required": false,
+  "retrieved_at": "2026-07-17",
+  "coverage_area": [139.746, 35.650, 139.764, 35.660],
+  "processing": "Point・Polygon・分類タグの読込試験用。実在施設情報ではない。",
+  "is_sample": true
+}

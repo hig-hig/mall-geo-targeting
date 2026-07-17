@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "real_data_requirements": {
+    "minimum_estat_mesh_coverage_ratio": 0.80,
+    "geospatial_coverage_buffer_m": 1000,
+    "require_feature_ids": true
+  },
+  "sources": {
+    "malls": {
+      "path": "config/malls.yaml",
+      "metadata_path": "data/raw/malls/sample_malls.metadata.yaml",
+      "format": "mall_yaml",
+      "license_record_name": "モール基本情報設定"
+    },
+    "estat": {
+      "path": "data/raw/estat/sample_estat_population.csv",
+      "metadata_path": "data/raw/estat/sample_estat_population.metadata.yaml",
+      "format": "estat_csv",
+      "license_record_name": "e-Stat 地域メッシュ統計（国勢調査人口等基本集計）"
+    },
+    "osm": {
+      "path": "data/raw/osm/sample_osm.geojson",
+      "metadata_path": "data/raw/osm/sample_osm.metadata.yaml",
+      "format": "osm_geojson",
+      "license_record_name": "OpenStreetMap"
+    },
+    "commercial": {
+      "path": "data/raw/commercial/sample_commercial_poi.geojson",
+      "metadata_path": "data/raw/commercial/sample_commercial_poi.metadata.yaml",
+      "format": "commercial_geojson",
+      "license_record_name": "ローカル商業POIファイル（データセット別記録テンプレート）"
+    }
+  }
+}
