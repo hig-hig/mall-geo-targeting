@@ -1,0 +1,29 @@
+{
+  "target_mall": {
+    "id": "target_tokyo_bay",
+    "name": "サンプル東京ベイモール",
+    "latitude": 35.6550,
+    "longitude": 139.7560,
+    "floor_area_m2": 85000,
+    "attractiveness": 1.0
+  },
+  "competitor_malls": [
+    {
+      "id": "competitor_north",
+      "name": "競合ノースモール",
+      "latitude": 35.6700,
+      "longitude": 139.7520,
+      "floor_area_m2": 62000,
+      "attractiveness": 0.9
+    },
+    {
+      "id": "competitor_east",
+      "name": "競合イーストモール",
+      "latitude": 35.6550,
+      "longitude": 139.7790,
+      "floor_area_m2": 71000,
+      "attractiveness": 1.1
+    }
+  ]
+}
+

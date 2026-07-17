@@ -1,0 +1,9 @@
+{
+  "mesh_size_m": 250,
+  "radius_m": 3000,
+  "huff_distance_exponent": 2.0,
+  "high_score_quantile": 0.8,
+  "population_path": "data/sample_population.csv",
+  "output_directory": "outputs"
+}
+
