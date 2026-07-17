@@ -1,0 +1,87 @@
+target_reference:
+  id: aeon-mall-musashimurayama
+  name: イオンモールむさし村山
+  address: 東京都武蔵村山市榎1丁目1-3
+  gross_leasable_area_m2: 78000
+  source_url: https://www.aeonmall.com/facility/detail/1638/
+  official_mall_guide_url: https://musashimurayama.aeonmall.jp/guide
+
+competitor_candidates:
+  - id: lalaport-tachikawa-tachihi
+    name: ららぽーと立川立飛
+    address: 東京都立川市泉町935-1
+    latitude: null
+    longitude: null
+    registration_status: awaiting_coordinate_verification
+    source_url: https://mfshogyo.mitsuifudosan.co.jp/opening/list/lalaport_tachikawa.html
+    retrieved_at: 2026-07-18
+    confirmed_facts:
+      gross_leasable_area_m2: 63000
+      site_area_m2: 94000
+      total_floor_area_m2: 162000
+      parking_spaces: 3000
+      opened: 2015-12
+    confirmed_fields:
+      - address
+      - gross_leasable_area_m2
+      - site_area_m2
+      - total_floor_area_m2
+      - parking_spaces
+      - opened
+    unverified_fields:
+      - latitude
+      - longitude
+      - attractiveness
+    attractiveness_reference: 0.8076923077
+
+  - id: aeon-mall-hinode
+    name: イオンモール日の出
+    address: 東京都西多摩郡日の出町大字平井字三吉野桜木237-3
+    latitude: null
+    longitude: null
+    registration_status: awaiting_coordinate_verification
+    source_url: https://www.aeonmall.com/facility/detail/1654/
+    official_mall_guide_url: https://hinode.aeonmall.jp/guide
+    retrieved_at: 2026-07-18
+    confirmed_facts:
+      gross_leasable_area_m2: 64000
+      site_area_m2: 131000
+      total_floor_area_m2: 124000
+      parking_spaces: 3650
+      opened: 2007-11-23
+    confirmed_fields:
+      - address
+      - gross_leasable_area_m2
+      - site_area_m2
+      - total_floor_area_m2
+      - parking_spaces
+      - opened
+    unverified_fields:
+      - latitude
+      - longitude
+      - attractiveness
+    attractiveness_reference: 0.8205128205
+
+  - id: moritown
+    name: モリタウン
+    address: 東京都昭島市田中町562-1付近
+    latitude: null
+    longitude: null
+    registration_status: awaiting_floor_area_and_coordinate_verification
+    source_url: null
+    retrieved_at: 2026-07-18
+    confirmed_facts: {}
+    confirmed_fields: []
+    unverified_fields:
+      - address
+      - gross_leasable_area_m2
+      - latitude
+      - longitude
+      - attractiveness
+    attractiveness_reference: null
+
+attractiveness_reference_rule:
+  formula: competitor_gross_leasable_area_m2 / target_gross_leasable_area_m2
+  target_attractiveness: 1.0
+  status: reference_only_until_coordinate_verification
+  limitations: 床面積だけを基準とする暫定モデル。ブランド力、テナント構成、駐車場、駅直結性、来館実績は未反映。

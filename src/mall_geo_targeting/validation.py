@@ -34,6 +34,7 @@ METADATA_FIELDS = (
 REAL_NAME_PATTERN = re.compile(
     r"^[a-z0-9]+(?:-[a-z0-9]+)*__(?:mall-profile|estat-population-mesh|osm-features|commercial-poi)__\d{8}\.(?:yaml|csv|geojson)$"
 )
+MALL_ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 @dataclass(frozen=True)
@@ -208,6 +209,75 @@ def _validate_malls(path: Path, issues: list[ValidationIssue]) -> tuple[float, f
     return target.latitude, target.longitude
 
 
+def validate_competitor_candidates(candidates_path: Path, malls_path: Path) -> list[ValidationIssue]:
+    """Validate the candidate ledger and prevent premature competitor registration."""
+    issues: list[ValidationIssue] = []
+    if not candidates_path.is_file():
+        _issue(issues, "ERROR", "competitor_candidates", f"候補台帳がありません: {candidates_path}")
+        return issues
+    try:
+        document = load_yaml(candidates_path)
+        mall_config = load_yaml(malls_path)
+    except (OSError, TypeError, ValueError) as exc:
+        _issue(issues, "ERROR", "competitor_candidates", f"候補台帳を読み込めません: {exc}")
+        return issues
+    candidates = document.get("competitor_candidates")
+    if not isinstance(candidates, list):
+        _issue(issues, "ERROR", "competitor_candidates", "competitor_candidatesはリストで指定してください")
+        return issues
+    candidate_ids: list[str] = []
+    by_id: dict[str, dict[str, Any]] = {}
+    for index, candidate in enumerate(candidates):
+        if not isinstance(candidate, dict):
+            _issue(issues, "ERROR", "competitor_candidates", f"候補{index}はマッピングで指定してください")
+            continue
+        identifier = str(candidate.get("id", ""))
+        candidate_ids.append(identifier)
+        by_id[identifier] = candidate
+        if not MALL_ID_PATTERN.fullmatch(identifier):
+            _issue(issues, "ERROR", "competitor_candidates", f"候補IDの形式が不正です: {identifier or '(empty)'}")
+        if not str(candidate.get("name", "")).strip():
+            _issue(issues, "ERROR", "competitor_candidates", f"{identifier}に名称がありません")
+        if not str(candidate.get("address", "")).strip():
+            _issue(issues, "ERROR", "competitor_candidates", f"{identifier}に住所がありません")
+        try:
+            date.fromisoformat(str(candidate.get("retrieved_at", "")))
+        except ValueError:
+            _issue(issues, "ERROR", "competitor_candidates", f"{identifier}のretrieved_atが不正です")
+        facts = candidate.get("confirmed_facts")
+        if not isinstance(facts, dict):
+            _issue(issues, "ERROR", "competitor_candidates", f"{identifier}のconfirmed_factsが不正です")
+            continue
+        floor_area = facts.get("gross_leasable_area_m2")
+        if floor_area is not None and (not isinstance(floor_area, (int, float)) or floor_area <= 0):
+            _issue(issues, "ERROR", "competitor_candidates", f"{identifier}の総賃貸面積が不正です")
+        status = candidate.get("registration_status")
+        if status == "awaiting_coordinate_verification" and floor_area is None:
+            _issue(issues, "ERROR", "competitor_candidates", f"{identifier}に分析用床面積がありません")
+        if status not in {
+            "awaiting_coordinate_verification",
+            "awaiting_floor_area_and_coordinate_verification",
+            "ready_for_registration",
+        }:
+            _issue(issues, "ERROR", "competitor_candidates", f"{identifier}のregistration_statusが不正です")
+        source_url = candidate.get("source_url")
+        if facts and (not isinstance(source_url, str) or not source_url.startswith("https://")):
+            _issue(issues, "ERROR", "competitor_candidates", f"{identifier}に確認済み情報のsource_urlがありません")
+    duplicates = sorted({identifier for identifier in candidate_ids if candidate_ids.count(identifier) > 1})
+    if duplicates:
+        _issue(issues, "ERROR", "competitor_candidates", f"候補IDが重複しています: {', '.join(duplicates)}")
+    for registered in mall_config.get("competitor_malls", []):
+        identifier = str(registered.get("id", ""))
+        candidate = by_id.get(identifier)
+        if candidate is not None and (
+            candidate.get("registration_status") != "ready_for_registration"
+            or candidate.get("latitude") is None
+            or candidate.get("longitude") is None
+        ):
+            _issue(issues, "ERROR", "competitor_candidates", f"座標未確認の候補をcompetitor_mallsへ登録できません: {identifier}")
+    return issues
+
+
 def validate_inputs(project_root: Path, require_real: bool = False) -> ValidationReport:
     issues: list[ValidationIssue] = []
     registry = load_yaml(project_root / "config" / "data_sources.yaml")
@@ -241,6 +311,12 @@ def validate_inputs(project_root: Path, require_real: bool = False) -> Validatio
             _issue(issues, "ERROR", source_name, "実データのファイル名が命名規則に一致しません")
 
     target = _validate_malls(paths["malls"], issues) if paths["malls"].is_file() else None
+    issues.extend(
+        validate_competitor_candidates(
+            project_root / "data" / "raw" / "malls" / "competitor_candidates.yaml",
+            paths["malls"],
+        )
+    )
     analysis_config = load_yaml(project_root / "config" / "analysis.yaml")
     mall_document = load_yaml(paths["malls"]) if paths["malls"].is_file() else {}
     mall_analysis = mall_document.get("analysis", {})
