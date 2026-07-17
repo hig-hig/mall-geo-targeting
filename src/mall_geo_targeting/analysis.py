@@ -7,10 +7,38 @@ import logging
 import math
 from pathlib import Path
 
-from .models import Mall, Mesh
+from .models import EstatMeshStatistics, Mall, Mesh, ValueStatus
 
 LOGGER = logging.getLogger(__name__)
 EARTH_RADIUS_M = 6_371_008.8
+
+
+def standard_quarter_mesh_code(latitude: float, longitude: float) -> str:
+    """Return the 10-digit Japanese quarter-mesh (approximately 250m) code."""
+    if not 0 <= latitude < 66.6666667 or not 100 <= longitude < 180:
+        raise ValueError("標準地域メッシュコードの対象範囲外の座標です")
+    lat_units = latitude * 1.5
+    first_lat = math.floor(lat_units)
+    first_lon = math.floor(longitude) - 100
+    lat_remainder = lat_units - first_lat
+    lon_remainder = longitude - math.floor(longitude)
+    second_lat = math.floor(lat_remainder * 8)
+    second_lon = math.floor(lon_remainder * 8)
+    lat_remainder = lat_remainder * 8 - second_lat
+    lon_remainder = lon_remainder * 8 - second_lon
+    third_lat = math.floor(lat_remainder * 10)
+    third_lon = math.floor(lon_remainder * 10)
+    lat_remainder = lat_remainder * 10 - third_lat
+    lon_remainder = lon_remainder * 10 - third_lon
+    half_lat = 1 if lat_remainder >= 0.5 else 0
+    half_lon = 1 if lon_remainder >= 0.5 else 0
+    half = 1 + half_lon + 2 * half_lat
+    lat_remainder = lat_remainder * 2 - half_lat
+    lon_remainder = lon_remainder * 2 - half_lon
+    quarter_lat = 1 if lat_remainder >= 0.5 else 0
+    quarter_lon = 1 if lon_remainder >= 0.5 else 0
+    quarter = 1 + quarter_lon + 2 * quarter_lat
+    return f"{first_lat:02d}{first_lon:02d}{second_lat}{second_lon}{third_lat}{third_lon}{half}{quarter}"
 
 
 def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -38,7 +66,7 @@ def generate_meshes(mall: Mall, radius_m: int, mesh_size_m: int) -> list[Mesh]:
             if haversine_m(mall.latitude, mall.longitude, center_lat, center_lon) > radius_m:
                 continue
             polygon = [[west, south], [east, south], [east, north], [west, north], [west, south]]
-            meshes.append(Mesh(f"M_{row:03d}_{column:03d}", row, column, center_lat, center_lon, polygon))
+            meshes.append(Mesh(f"M_{row:03d}_{column:03d}", row, column, center_lat, center_lon, polygon, standard_quarter_mesh_code(latitude=center_lat, longitude=center_lon)))
     LOGGER.info("%d個の%d mメッシュを生成しました", len(meshes), mesh_size_m)
     return meshes
 
@@ -71,6 +99,40 @@ def join_population(meshes: list[Mesh], csv_path: Path) -> None:
             name for name in ("population", "young_adult_ratio", "smartphone_affinity")
             if getattr(mesh, name) is None
         ]
+
+
+def join_estat_statistics(meshes: list[Mesh], statistics: dict[str, EstatMeshStatistics]) -> None:
+    """Join e-Stat values by standard code while preserving the application mesh ID."""
+    for mesh in meshes:
+        code = mesh.standard_mesh_code or ""
+        # Prefer the most detailed available record. An e-Stat table may be
+        # published at quarter (10), half (9), or third (8-digit, 1km) mesh level.
+        record = next((statistics[candidate] for candidate in (code, code[:9], code[:8]) if candidate in statistics), None)
+        if record is None:
+            mesh.population_status = ValueStatus.MISSING
+            mesh.household_count_status = ValueStatus.MISSING
+            mesh.age_0_14_status = ValueStatus.MISSING
+            mesh.age_15_64_status = ValueStatus.MISSING
+            mesh.age_65_plus_status = ValueStatus.MISSING
+            mesh.missing_fields = ["population", "household_count", "age_0_14_population", "age_15_64_population", "age_65_plus_population", "smartphone_affinity"]
+            continue
+        mesh.population = record.total_population.value
+        mesh.source_standard_mesh_code = record.standard_mesh_code
+        mesh.population_status = record.total_population.status
+        mesh.household_count = record.households.value
+        mesh.household_count_status = record.households.status
+        mesh.age_0_14_population = record.age_0_14.value
+        mesh.age_0_14_status = record.age_0_14.status
+        mesh.age_15_64_population = record.age_15_64.value
+        mesh.age_15_64_status = record.age_15_64.status
+        mesh.age_65_plus_population = record.age_65_plus.value
+        mesh.age_65_plus_status = record.age_65_plus.status
+        mesh.source_survey_year = record.survey_year
+        mesh.source_table_id = record.table_id
+        if mesh.population is not None and mesh.population > 0 and mesh.age_15_64_population is not None:
+            mesh.young_adult_ratio = mesh.age_15_64_population / mesh.population
+        mesh.smartphone_affinity = None  # Not supplied by the required e-Stat population table.
+        mesh.missing_fields = [name for name in ("population", "household_count", "age_0_14_population", "age_15_64_population", "age_65_plus_population", "smartphone_affinity") if getattr(mesh, name) is None]
 
 
 def calculate_huff(meshes: list[Mesh], target: Mall, competitors: list[Mall], exponent: float) -> None:

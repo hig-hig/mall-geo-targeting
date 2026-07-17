@@ -1,0 +1,14 @@
+{
+  "datasets": [
+    {
+      "name": "e-Stat 地域メッシュ統計（国勢調査人口等基本集計）",
+      "source": "政府統計の総合窓口 e-Stat",
+      "url": "https://www.e-stat.go.jp/gis/statmap-search?page=1&type=1&toukeiCode=00200521",
+      "license": "政府標準利用規約（第2.0版）",
+      "commercial_use_allowed": true,
+      "retrieved_at": null,
+      "processing": "利用者が手動取得したCSVから必要列を抽出し、独自250m配信メッシュの中心点に対応する標準地域メッシュコードで結合。欠損・秘匿・対象外は補完しない。",
+      "note": "同梱CSVは形式確認用の模擬データであり、政府統計の実数値ではない。実データ利用時は取得日と対象表を更新すること。"
+    }
+  ]
+}

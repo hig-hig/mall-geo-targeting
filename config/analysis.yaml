@@ -3,7 +3,27 @@
   "radius_m": 3000,
   "huff_distance_exponent": 2.0,
   "high_score_quantile": 0.8,
+  "data_mode": "sample",
   "population_path": "data/sample_population.csv",
+  "estat": {
+    "path": "data/raw/estat/sample_estat_population.csv",
+    "encoding": "utf-8-sig",
+    "delimiter": ",",
+    "survey_year": 2020,
+    "table_id": "SAMPLE-ESTAT-POPULATION",
+    "columns": {
+      "standard_mesh_code": "地域メッシュコード",
+      "total_population": "総人口",
+      "households": "世帯数",
+      "age_0_14": "0～14歳人口",
+      "age_15_64": "15～64歳人口",
+      "age_65_plus": "65歳以上人口"
+    },
+    "markers": {
+      "missing": ["", "NA"],
+      "suppressed": ["X", "秘匿"],
+      "not_applicable": ["-", "対象外"]
+    }
+  },
   "output_directory": "outputs"
 }
-

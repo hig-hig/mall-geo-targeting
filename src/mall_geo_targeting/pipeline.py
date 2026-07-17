@@ -5,25 +5,35 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from .analysis import assign_delivery_zones, calculate_huff, calculate_potential, generate_meshes, join_population
+from .analysis import assign_delivery_zones, calculate_huff, calculate_potential, generate_meshes, join_estat_statistics, join_population
 from .config import load_yaml, mall_from_dict
+from .estat import load_estat_csv
 from .output import write_outputs
 
 LOGGER = logging.getLogger(__name__)
 
 
-def run(project_root: Path) -> dict[str, object]:
+def run(project_root: Path, data_mode: str | None = None) -> dict[str, object]:
     malls_config = load_yaml(project_root / "config" / "malls.yaml")
     analysis_config = load_yaml(project_root / "config" / "analysis.yaml")
     target = mall_from_dict(malls_config["target_mall"])
     competitors = [mall_from_dict(value) for value in malls_config.get("competitor_malls", [])]
     meshes = generate_meshes(target, int(analysis_config["radius_m"]), int(analysis_config["mesh_size_m"]))
-    join_population(meshes, project_root / str(analysis_config["population_path"]))
+    selected_mode = data_mode or str(analysis_config.get("data_mode", "sample"))
+    if selected_mode == "sample":
+        join_population(meshes, project_root / str(analysis_config["population_path"]))
+    elif selected_mode == "estat":
+        estat_config = analysis_config.get("estat")
+        if not isinstance(estat_config, dict):
+            raise ValueError("実データモードにはanalysis.yamlのestat設定が必要です")
+        statistics = load_estat_csv(project_root / str(estat_config["path"]), estat_config)
+        join_estat_statistics(meshes, statistics)
+    else:
+        raise ValueError(f"未対応のdata_modeです: {selected_mode!r} (sampleまたはestat)")
     calculate_huff(meshes, target, competitors, float(analysis_config["huff_distance_exponent"]))
     calculate_potential(meshes)
     threshold = assign_delivery_zones(meshes, float(analysis_config["high_score_quantile"]))
     paths = write_outputs(meshes, target, project_root / str(analysis_config["output_directory"]))
-    result = {"mesh_count": len(meshes), "scored_count": sum(m.acquisition_potential_score is not None for m in meshes), "delivery_zone_count": sum(m.is_delivery_zone for m in meshes), "threshold": threshold, "outputs": paths}
+    result = {"data_mode": selected_mode, "mesh_count": len(meshes), "scored_count": sum(m.acquisition_potential_score is not None for m in meshes), "delivery_zone_count": sum(m.is_delivery_zone for m in meshes), "threshold": threshold, "outputs": paths}
     LOGGER.info("パイプライン完了: %s", result)
     return result
-
