@@ -124,6 +124,45 @@ missing_policy: renormalize
 minimum_score_coverage: 0.40
 ```
 
+### 必須特徴量グループゲート
+
+coverageは「利用できた元重みの量」を測りますが、施策上必要な情報の種類までは保証しません。例えばcouponでは、Huff・到達性・商業集積だけでcoverage 0.55に達しても、対象人口が不明な地域を新規顧客獲得の配信候補にはしません。
+
+`required_feature_groups`は特徴量を意味別にまとめ、`require_any`または`require_all`で必須条件を定義します。
+
+```yaml
+required_feature_groups:
+  demographic:
+    require_any:
+      - target_age_population_index
+      - household_composition_index
+  mall_relationship:
+    require_all:
+      - huff_visit_probability
+  context:
+    require_any:
+      - accessibility_index
+      - commercial_concentration_index
+```
+
+初期coupon設定では次をすべて満たす必要があります。
+
+- `demographic`: 対象年代人口または世帯構成の少なくとも一方
+- `mall_relationship`: Huff来館可能性
+- `context`: 到達性または商業集積の少なくとも一方
+
+最終的な配信適格条件は次のとおりです。
+
+```text
+score_coverage >= minimum_score_coverage
+AND required_feature_gate_passed == true
+AND 獲得ポテンシャルスコアが算出済み
+```
+
+必須グループを満たさない場合もスコアは削除せず、監査・分析用に保持します。配信ゾーン閾値の分位点はcoverageと必須グループの両方を満たすメッシュだけから算出します。
+
+アプリ価値別の変更は`required_feature_group_overrides`で行います。`replace: true`なら共通グループを一式置換し、`false`なら同名グループだけ上書きします。初期設定には、将来parkingアプリで人口要件を緩和できる構造例として、demographicを含まない置換設定があります。実運用では施策リスクと説明責任を確認して変更してください。
+
 出力には次の監査情報を含めます。
 
 - `used_features`: 実際に使用した特徴量
@@ -134,7 +173,12 @@ minimum_score_coverage: 0.40
 - `score_quality_tier`: coverageに基づくA～Dの品質ランク
 - `feature_count_used`: 実際に使用した特徴量数
 - `feature_count_enabled`: 設定上有効な特徴量数
-- `eligible_for_delivery`: minimum coverage以上で配信候補評価に利用可能か
+- `eligible_for_delivery`: minimum coverageと必須特徴量ゲートを満たし、配信候補評価に利用可能か
+- `required_groups_passed`: 条件を満たした必須特徴量グループ
+- `required_groups_missing`: 不足している必須特徴量グループ
+- `required_feature_gate_passed`: 全必須グループを満たしたか
+
+`eligible_for_delivery`はminimum coverageと必須特徴量ゲートの両方を反映します。
 
 ### smartphone_affinityの非推奨化
 

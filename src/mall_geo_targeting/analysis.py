@@ -166,6 +166,51 @@ SCORE_FEATURES = (
     "commercial_concentration_index",
 )
 
+DEFAULT_REQUIRED_FEATURE_GROUPS: dict[str, dict[str, list[str]]] = {
+    "demographic": {"require_any": ["target_age_population_index", "household_composition_index"]},
+    "mall_relationship": {"require_all": ["huff_visit_probability"]},
+    "context": {"require_any": ["accessibility_index", "commercial_concentration_index"]},
+}
+
+
+def resolve_required_feature_groups(
+    base_groups: dict[str, dict[str, list[str]]],
+    overrides: dict[str, dict[str, object]] | None,
+    app_value: str,
+) -> dict[str, dict[str, list[str]]]:
+    """Resolve common required groups with an optional app-value override."""
+    resolved = {name: dict(rule) for name, rule in base_groups.items()}
+    override = (overrides or {}).get(app_value)
+    if override is None:
+        return resolved
+    groups = override.get("groups")
+    if not isinstance(groups, dict):
+        raise ValueError(f"{app_value}のrequired feature group overrideにgroupsが必要です")
+    if bool(override.get("replace", False)):
+        return {str(name): dict(rule) for name, rule in groups.items()}  # type: ignore[arg-type]
+    resolved.update({str(name): dict(rule) for name, rule in groups.items()})  # type: ignore[arg-type]
+    return resolved
+
+
+def _evaluate_required_groups(
+    feature_values: dict[str, float | None],
+    groups: dict[str, dict[str, list[str]]],
+) -> tuple[list[str], list[str]]:
+    passed: list[str] = []
+    missing: list[str] = []
+    for group_name, rule in groups.items():
+        rule_types = set(rule)
+        if rule_types not in ({"require_any"}, {"require_all"}):
+            raise ValueError(f"必須特徴量グループ{group_name}はrequire_anyまたはrequire_allの一方を指定してください")
+        rule_type = next(iter(rule_types))
+        features = rule[rule_type]
+        if not features or any(name not in SCORE_FEATURES for name in features):
+            raise ValueError(f"必須特徴量グループ{group_name}に有効な特徴量を指定してください")
+        available = [feature_values[name] is not None for name in features]
+        group_passed = any(available) if rule_type == "require_any" else all(available)
+        (passed if group_passed else missing).append(group_name)
+    return passed, missing
+
 
 def _validate_index(name: str, value: float | None) -> float | None:
     if value is not None and not 0 <= value <= 1:
@@ -191,6 +236,7 @@ def calculate_potential(
     enabled_features: dict[str, bool] | None = None,
     app_value: str = "custom",
     minimum_score_coverage: float = 0.40,
+    required_feature_groups: dict[str, dict[str, list[str]]] | None = None,
 ) -> None:
     """Calculate an explainable potential score, never a download probability."""
     selected_weights = weights or {
@@ -201,6 +247,7 @@ def calculate_potential(
         "commercial_concentration_index": 0.20,
     }
     enabled = enabled_features or {name: True for name in SCORE_FEATURES}
+    required_groups = required_feature_groups or DEFAULT_REQUIRED_FEATURE_GROUPS
     if missing_policy not in ("renormalize", "strict"):
         raise ValueError("missing_policyはrenormalizeまたはstrictを指定してください")
     if not 0 <= minimum_score_coverage <= 1:
@@ -226,7 +273,9 @@ def calculate_potential(
             else None
         )
         mesh.target_age_population_index = (
-            target_count / max_target_count if target_count is not None and max_target_count > 0 else None
+            target_count / max_target_count
+            if target_count is not None and max_target_count > 0
+            else (0.0 if target_count is not None else None)
         )
         mesh.household_composition_index = (
             mesh.household_count / mesh.population
@@ -253,6 +302,10 @@ def calculate_potential(
         available_weight = sum(selected_weights[name] for name in mesh.used_features)
         mesh.score_coverage = round(available_weight / total_enabled_weight, 6)
         mesh.score_quality_tier = score_quality_tier(mesh.score_coverage)
+        mesh.required_groups_passed, mesh.required_groups_missing = _evaluate_required_groups(
+            feature_values, required_groups
+        )
+        mesh.required_feature_gate_passed = not mesh.required_groups_missing
         mesh.used_weights = {}
         mesh.score_method = f"regional_features_v1:{app_value}:{missing_policy}"
         mesh.eligible_for_delivery = False
@@ -268,7 +321,10 @@ def calculate_potential(
         }
         raw = sum(feature_values[name] * mesh.used_weights[name] for name in mesh.used_features)  # type: ignore[operator]
         mesh.acquisition_potential_score = round(max(0.0, min(100.0, raw * 100)), 2)
-        mesh.eligible_for_delivery = mesh.score_coverage >= minimum_score_coverage
+        mesh.eligible_for_delivery = (
+            mesh.score_coverage >= minimum_score_coverage
+            and mesh.required_feature_gate_passed
+        )
 
 
 def assign_delivery_zones(meshes: list[Mesh], quantile: float) -> float | None:

@@ -20,6 +20,9 @@ def test_sample_pipeline_outputs_files() -> None:
         "score_quality_tier",
         "feature_count_used",
         "feature_count_enabled",
+        "required_groups_passed",
+        "required_groups_missing",
+        "required_feature_gate_passed",
         "eligible_for_delivery",
     ):
         assert field in properties
@@ -45,7 +48,9 @@ def test_estat_mode_runs_without_replacing_sample_default() -> None:
     assert "smartphone_affinity" not in demographic["properties"]["used_features"]
     assert demographic["properties"]["score_coverage"] == 0.65
     assert demographic["properties"]["score_quality_tier"] == "B"
-    assert demographic["properties"]["eligible_for_delivery"] is True
+    assert demographic["properties"]["required_feature_gate_passed"] is False
+    assert demographic["properties"]["required_groups_missing"] == ["context"]
+    assert demographic["properties"]["eligible_for_delivery"] is False
 
     huff_only = [
         f for f in geojson["features"]

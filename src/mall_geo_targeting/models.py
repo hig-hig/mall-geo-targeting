@@ -110,6 +110,9 @@ class Mesh:
     score_quality_tier: str | None = None
     feature_count_used: int = 0
     feature_count_enabled: int = 0
+    required_groups_passed: list[str] = field(default_factory=list)
+    required_groups_missing: list[str] = field(default_factory=list)
+    required_feature_gate_passed: bool = False
     eligible_for_delivery: bool = False
     is_delivery_zone: bool = False
     missing_fields: list[str] = field(default_factory=list)

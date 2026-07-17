@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from .analysis import assign_delivery_zones, calculate_huff, calculate_potential, generate_meshes, join_estat_statistics, join_population
+from .analysis import assign_delivery_zones, calculate_huff, calculate_potential, generate_meshes, join_estat_statistics, join_population, resolve_required_feature_groups
 from .config import load_yaml, mall_from_dict
 from .commercial import calculate_commercial_concentration, load_commercial_geojson
 from .estat import load_estat_csv
@@ -66,6 +66,11 @@ def run(project_root: Path, data_mode: str | None = None, accessibility_mode: st
     presets = feature_config.get("presets", {})
     if target.app_value not in presets:
         raise ValueError(f"app_valueに対応する重みプリセットがありません: {target.app_value}")
+    required_groups = resolve_required_feature_groups(
+        feature_config.get("required_feature_groups", {}),
+        feature_config.get("required_feature_group_overrides"),
+        target.app_value,
+    )
     calculate_potential(
         meshes,
         weights=presets[target.app_value],
@@ -73,6 +78,7 @@ def run(project_root: Path, data_mode: str | None = None, accessibility_mode: st
         enabled_features=feature_config.get("enabled_features"),
         app_value=target.app_value,
         minimum_score_coverage=float(feature_config.get("minimum_score_coverage", 0.40)),
+        required_feature_groups=required_groups,
     )
     threshold = assign_delivery_zones(meshes, float(analysis_config["high_score_quantile"]))
     paths = write_outputs(meshes, target, project_root / str(analysis_config["output_directory"]))
@@ -82,6 +88,8 @@ def run(project_root: Path, data_mode: str | None = None, accessibility_mode: st
     }
     accessibility_coverages = [m.accessibility_coverage for m in meshes if m.accessibility_coverage is not None]
     commercial_coverages = [m.commercial_coverage for m in meshes if m.commercial_coverage is not None]
-    result = {"data_mode": selected_mode, "accessibility_mode": selected_accessibility_mode, "commercial_mode": selected_commercial_mode, "mesh_count": len(meshes), "scored_count": sum(m.acquisition_potential_score is not None for m in meshes), "eligible_count": sum(m.eligible_for_delivery for m in meshes), "excluded_by_coverage_count": sum(m.acquisition_potential_score is not None and not m.eligible_for_delivery for m in meshes), "quality_counts": quality_counts, "accessibility_coverage_count": len(accessibility_coverages), "mean_accessibility_coverage": round(sum(accessibility_coverages) / len(accessibility_coverages), 6) if accessibility_coverages else None, "commercial_coverage_count": len(commercial_coverages), "mean_commercial_coverage": round(sum(commercial_coverages) / len(commercial_coverages), 6) if commercial_coverages else None, "delivery_zone_count": sum(m.is_delivery_zone for m in meshes), "threshold": threshold, "outputs": paths}
+    scored = [m for m in meshes if m.acquisition_potential_score is not None]
+    coverage_eligible_count = sum(m.score_coverage is not None and m.score_coverage >= float(feature_config.get("minimum_score_coverage", 0.40)) for m in scored)
+    result = {"data_mode": selected_mode, "accessibility_mode": selected_accessibility_mode, "commercial_mode": selected_commercial_mode, "mesh_count": len(meshes), "scored_count": len(scored), "coverage_eligible_count": coverage_eligible_count, "required_gate_eligible_count": sum(m.required_feature_gate_passed for m in scored), "demographic_missing_count": sum("demographic" in m.required_groups_missing for m in scored), "eligible_count": sum(m.eligible_for_delivery for m in meshes), "excluded_by_coverage_count": sum(m.score_coverage is not None and m.score_coverage < float(feature_config.get("minimum_score_coverage", 0.40)) for m in scored), "excluded_by_required_gate_count": sum(not m.required_feature_gate_passed for m in scored), "quality_counts": quality_counts, "accessibility_coverage_count": len(accessibility_coverages), "mean_accessibility_coverage": round(sum(accessibility_coverages) / len(accessibility_coverages), 6) if accessibility_coverages else None, "commercial_coverage_count": len(commercial_coverages), "mean_commercial_coverage": round(sum(commercial_coverages) / len(commercial_coverages), 6) if commercial_coverages else None, "delivery_zone_count": sum(m.is_delivery_zone for m in meshes), "threshold": threshold, "outputs": paths}
     LOGGER.info("パイプライン完了: %s", result)
     return result

@@ -27,6 +27,7 @@ def main() -> int:
     print(f"到達性coverage: {result['accessibility_coverage_count']}件 / 平均: {result['mean_accessibility_coverage']}")
     print(f"商業coverage: {result['commercial_coverage_count']}件 / 平均: {result['mean_commercial_coverage']}")
     print(f"配信適格: {result['eligible_count']} / coverage除外: {result['excluded_by_coverage_count']} / 品質ランク: {result['quality_counts']}")
+    print(f"coverage適格: {result['coverage_eligible_count']} / 必須ゲート適格: {result['required_gate_eligible_count']} / 人口不足: {result['demographic_missing_count']}")
     for kind, path in result["outputs"].items():
         print(f"{kind}: {path}")
     return 0

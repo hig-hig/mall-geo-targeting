@@ -8,6 +8,30 @@
     "accessibility_index": true,
     "commercial_concentration_index": true
   },
+  "required_feature_groups": {
+    "demographic": {
+      "require_any": ["target_age_population_index", "household_composition_index"]
+    },
+    "mall_relationship": {
+      "require_all": ["huff_visit_probability"]
+    },
+    "context": {
+      "require_any": ["accessibility_index", "commercial_concentration_index"]
+    }
+  },
+  "required_feature_group_overrides": {
+    "parking": {
+      "replace": true,
+      "groups": {
+        "mall_relationship": {
+          "require_all": ["huff_visit_probability"]
+        },
+        "context": {
+          "require_any": ["accessibility_index", "commercial_concentration_index"]
+        }
+      }
+    }
+  },
   "presets": {
     "coupon": {
       "target_age_population_index": 0.30,

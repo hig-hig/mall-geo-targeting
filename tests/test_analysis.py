@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from mall_geo_targeting.analysis import assign_delivery_zones, calculate_huff, calculate_potential, generate_meshes, join_population, score_quality_tier
+from mall_geo_targeting.analysis import assign_delivery_zones, calculate_huff, calculate_potential, generate_meshes, join_population, resolve_required_feature_groups, score_quality_tier
 from mall_geo_targeting.models import Mall, Mesh
 
 
@@ -102,6 +102,57 @@ def test_coupon_demographics_and_huff_have_coverage_065() -> None:
     assert mesh.score_quality_tier == "B"
     assert mesh.feature_count_used == 3
     assert mesh.feature_count_enabled == 5
+    assert not mesh.eligible_for_delivery
+    assert mesh.required_groups_passed == ["demographic", "mall_relationship"]
+    assert mesh.required_groups_missing == ["context"]
+
+
+def test_huff_accessibility_and_commercial_without_demographics_is_not_eligible() -> None:
+    mesh = Mesh("no-demographics", 0, 0, 35, 139, [], huff_probability=0.7, accessibility_index=0.8, commercial_concentration_index=0.9)
+    calculate_potential([mesh], app_value="coupon")
+    assert mesh.acquisition_potential_score is not None
+    assert mesh.score_coverage == 0.55
+    assert mesh.required_groups_missing == ["demographic"]
+    assert not mesh.required_feature_gate_passed
+    assert not mesh.eligible_for_delivery
+
+
+@pytest.mark.parametrize("context_values", [{"accessibility_index": 0.8}, {"commercial_concentration_index": 0.8}])
+def test_demographics_huff_and_either_context_can_be_eligible(context_values: dict[str, float]) -> None:
+    mesh = Mesh("eligible", 0, 0, 35, 139, [], population=100, young_adult_ratio=0.3, huff_probability=0.7, **context_values)
+    calculate_potential([mesh], app_value="coupon")
+    assert mesh.acquisition_potential_score is not None
+    assert mesh.required_groups_missing == []
+    assert mesh.required_feature_gate_passed
+    assert mesh.eligible_for_delivery
+
+
+def test_app_value_override_can_relax_demographic_group() -> None:
+    base = {
+        "demographic": {"require_any": ["target_age_population_index"]},
+        "mall_relationship": {"require_all": ["huff_visit_probability"]},
+        "context": {"require_any": ["accessibility_index"]},
+    }
+    overrides = {
+        "parking": {
+            "replace": True,
+            "groups": {
+                "mall_relationship": {"require_all": ["huff_visit_probability"]},
+                "context": {"require_any": ["accessibility_index"]},
+            },
+        }
+    }
+    groups = resolve_required_feature_groups(base, overrides, "parking")
+    mesh = Mesh("parking", 0, 0, 35, 139, [], huff_probability=0.7, accessibility_index=0.8)
+    weights = {
+        "target_age_population_index": 0.15,
+        "household_composition_index": 0.20,
+        "huff_visit_probability": 0.20,
+        "accessibility_index": 0.35,
+        "commercial_concentration_index": 0.10,
+    }
+    calculate_potential([mesh], weights=weights, app_value="parking", required_feature_groups=groups)
+    assert mesh.required_feature_gate_passed
     assert mesh.eligible_for_delivery
 
 

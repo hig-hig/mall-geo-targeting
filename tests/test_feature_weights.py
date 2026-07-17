@@ -8,6 +8,8 @@ def test_all_app_value_presets_cover_score_features() -> None:
     root = Path(__file__).parents[1]
     config = load_yaml(root / "config" / "feature_weights.yaml")
     assert config["minimum_score_coverage"] == 0.40
+    assert set(config["required_feature_groups"]) == {"demographic", "mall_relationship", "context"}
+    assert config["required_feature_group_overrides"]["parking"]["replace"] is True
     assert set(config["presets"]) == {"coupon", "parking", "event", "crm", "tenant_info"}
     for weights in config["presets"].values():
         assert set(weights) == set(SCORE_FEATURES)
