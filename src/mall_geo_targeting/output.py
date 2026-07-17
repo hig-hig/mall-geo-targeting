@@ -9,11 +9,18 @@ from pathlib import Path
 from .models import Mall, Mesh
 
 
-FIELDS = ["mesh_id", "standard_mesh_code", "source_standard_mesh_code", "center_latitude", "center_longitude", "population", "population_status", "household_count", "household_count_status", "age_0_14_population", "age_0_14_status", "age_15_64_population", "age_15_64_status", "age_65_plus_population", "age_65_plus_status", "source_survey_year", "source_table_id", "young_adult_ratio", "smartphone_affinity", "huff_probability", "acquisition_potential_score", "is_delivery_zone", "missing_fields"]
+FIELDS = ["mesh_id", "standard_mesh_code", "source_standard_mesh_code", "center_latitude", "center_longitude", "population", "population_status", "household_count", "household_count_status", "age_0_14_population", "age_0_14_status", "age_15_64_population", "age_15_64_status", "age_65_plus_population", "age_65_plus_status", "source_survey_year", "source_table_id", "young_adult_ratio", "smartphone_affinity", "target_age_population_index", "household_composition_index", "huff_probability", "accessibility_index", "commercial_concentration_index", "acquisition_potential_score", "used_features", "missing_features", "used_weights", "score_method", "is_delivery_zone", "missing_fields"]
 
 
 def _properties(mesh: Mesh) -> dict[str, object]:
     return {name: (",".join(mesh.missing_fields) if name == "missing_fields" else getattr(mesh, name)) for name in FIELDS}
+
+
+def _csv_row(mesh: Mesh) -> dict[str, object]:
+    properties = _properties(mesh)
+    for name in ("used_features", "missing_features", "used_weights"):
+        properties[name] = json.dumps(properties[name], ensure_ascii=False, sort_keys=True)
+    return properties
 
 
 def write_outputs(meshes: list[Mesh], mall: Mall, output_dir: Path) -> dict[str, Path]:
@@ -22,7 +29,7 @@ def write_outputs(meshes: list[Mesh], mall: Mall, output_dir: Path) -> dict[str,
     with csv_path.open("w", encoding="utf-8", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=FIELDS)
         writer.writeheader()
-        writer.writerows(_properties(mesh) for mesh in meshes)
+        writer.writerows(_csv_row(mesh) for mesh in meshes)
     features = [{"type": "Feature", "properties": _properties(mesh), "geometry": {"type": "Polygon", "coordinates": [mesh.polygon]}} for mesh in meshes]
     geojson = {"type": "FeatureCollection", "features": features}
     geojson_path.write_text(json.dumps(geojson, ensure_ascii=False, indent=2), encoding="utf-8")

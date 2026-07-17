@@ -14,6 +14,7 @@ class Mall:
     longitude: float
     floor_area_m2: float
     attractiveness: float = 1.0
+    app_value: str = "coupon"
 
 
 class ValueStatus(StrEnum):
@@ -69,8 +70,18 @@ class Mesh:
     source_survey_year: int | None = None
     source_table_id: str | None = None
     young_adult_ratio: float | None = None
+    target_age_population_index: float | None = None
+    household_composition_index: float | None = None
+    accessibility_index: float | None = None
+    commercial_concentration_index: float | None = None
+    # Deprecated input retained only for backward-compatible CSV ingestion.
+    # It is never used by the Step 3 score.
     smartphone_affinity: float | None = None
     huff_probability: float | None = None
     acquisition_potential_score: float | None = None
+    used_features: list[str] = field(default_factory=list)
+    missing_features: list[str] = field(default_factory=list)
+    used_weights: dict[str, float] = field(default_factory=dict)
+    score_method: str | None = None
     is_delivery_zone: bool = False
     missing_fields: list[str] = field(default_factory=list)

@@ -87,16 +87,26 @@ def join_population(meshes: list[Mesh], csv_path: Path) -> None:
         # sample dataset that still exercises a real key-based join over the full area.
         row = rows.get(mesh.mesh_id) or rows.get(f"R_{mesh.row:03d}")
         if row is None:
-            mesh.missing_fields = ["population", "young_adult_ratio", "smartphone_affinity"]
+            mesh.missing_fields = [
+                "population",
+                "young_adult_ratio",
+                "household_count",
+                "accessibility_index",
+                "commercial_concentration_index",
+            ]
             continue
         try:
             mesh.population = _optional_number(row["population"], int)  # type: ignore[assignment]
             mesh.young_adult_ratio = _optional_number(row["young_adult_ratio"], float)  # type: ignore[assignment]
-            mesh.smartphone_affinity = _optional_number(row["smartphone_affinity"], float)  # type: ignore[assignment]
+            mesh.household_count = _optional_number(row.get("household_count", ""), int)  # type: ignore[assignment]
+            mesh.accessibility_index = _optional_number(row.get("accessibility_index", ""), float)  # type: ignore[assignment]
+            mesh.commercial_concentration_index = _optional_number(row.get("commercial_concentration_index", ""), float)  # type: ignore[assignment]
+            # Legacy input remains readable but is deprecated and not scored.
+            mesh.smartphone_affinity = _optional_number(row.get("smartphone_affinity", ""), float)  # type: ignore[assignment]
         except (KeyError, ValueError) as exc:
             raise ValueError(f"人口データの値が不正です ({mesh.mesh_id}): {exc}") from exc
         mesh.missing_fields = [
-            name for name in ("population", "young_adult_ratio", "smartphone_affinity")
+            name for name in ("population", "young_adult_ratio", "household_count", "accessibility_index", "commercial_concentration_index")
             if getattr(mesh, name) is None
         ]
 
@@ -114,7 +124,7 @@ def join_estat_statistics(meshes: list[Mesh], statistics: dict[str, EstatMeshSta
             mesh.age_0_14_status = ValueStatus.MISSING
             mesh.age_15_64_status = ValueStatus.MISSING
             mesh.age_65_plus_status = ValueStatus.MISSING
-            mesh.missing_fields = ["population", "household_count", "age_0_14_population", "age_15_64_population", "age_65_plus_population", "smartphone_affinity"]
+            mesh.missing_fields = ["population", "household_count", "age_0_14_population", "age_15_64_population", "age_65_plus_population"]
             continue
         mesh.population = record.total_population.value
         mesh.source_standard_mesh_code = record.standard_mesh_code
@@ -131,8 +141,8 @@ def join_estat_statistics(meshes: list[Mesh], statistics: dict[str, EstatMeshSta
         mesh.source_table_id = record.table_id
         if mesh.population is not None and mesh.population > 0 and mesh.age_15_64_population is not None:
             mesh.young_adult_ratio = mesh.age_15_64_population / mesh.population
-        mesh.smartphone_affinity = None  # Not supplied by the required e-Stat population table.
-        mesh.missing_fields = [name for name in ("population", "household_count", "age_0_14_population", "age_15_64_population", "age_65_plus_population", "smartphone_affinity") if getattr(mesh, name) is None]
+        mesh.smartphone_affinity = None  # Deprecated; never generated from demographics.
+        mesh.missing_fields = [name for name in ("population", "household_count", "age_0_14_population", "age_15_64_population", "age_65_plus_population") if getattr(mesh, name) is None]
 
 
 def calculate_huff(meshes: list[Mesh], target: Mall, competitors: list[Mall], exponent: float) -> None:
@@ -148,22 +158,93 @@ def calculate_huff(meshes: list[Mesh], target: Mall, competitors: list[Mall], ex
         mesh.huff_probability = utilities[0] / denominator if denominator > 0 else None
 
 
-def calculate_potential(meshes: list[Mesh]) -> None:
-    """Score acquisition potential (0-100), not historical download probability."""
-    known_populations = [m.population for m in meshes if m.population is not None]
-    max_population = max(known_populations, default=0)
+SCORE_FEATURES = (
+    "target_age_population_index",
+    "household_composition_index",
+    "huff_visit_probability",
+    "accessibility_index",
+    "commercial_concentration_index",
+)
+
+
+def _validate_index(name: str, value: float | None) -> float | None:
+    if value is not None and not 0 <= value <= 1:
+        raise ValueError(f"{name}は0から1の範囲で指定してください: {value}")
+    return value
+
+
+def calculate_potential(
+    meshes: list[Mesh],
+    weights: dict[str, float] | None = None,
+    missing_policy: str = "renormalize",
+    enabled_features: dict[str, bool] | None = None,
+    app_value: str = "custom",
+) -> None:
+    """Calculate an explainable potential score, never a download probability."""
+    selected_weights = weights or {
+        "target_age_population_index": 0.30,
+        "household_composition_index": 0.15,
+        "huff_visit_probability": 0.20,
+        "accessibility_index": 0.15,
+        "commercial_concentration_index": 0.20,
+    }
+    enabled = enabled_features or {name: True for name in SCORE_FEATURES}
+    if missing_policy not in ("renormalize", "strict"):
+        raise ValueError("missing_policyはrenormalizeまたはstrictを指定してください")
+    unknown = set(selected_weights) - set(SCORE_FEATURES)
+    if unknown:
+        raise ValueError(f"未対応のスコア特徴量です: {', '.join(sorted(unknown))}")
+    for name in SCORE_FEATURES:
+        weight = selected_weights.get(name)
+        if enabled.get(name, False) and (weight is None or weight < 0):
+            raise ValueError(f"有効特徴量{name}の重みは0以上で指定してください")
+
+    target_counts = [
+        mesh.population * mesh.young_adult_ratio
+        for mesh in meshes
+        if mesh.population is not None and mesh.young_adult_ratio is not None
+    ]
+    max_target_count = max(target_counts, default=0.0)
     for mesh in meshes:
-        required = (mesh.population, mesh.young_adult_ratio, mesh.smartphone_affinity, mesh.huff_probability)
-        if any(value is None for value in required):
+        target_count = (
+            mesh.population * mesh.young_adult_ratio
+            if mesh.population is not None and mesh.young_adult_ratio is not None
+            else None
+        )
+        mesh.target_age_population_index = (
+            target_count / max_target_count if target_count is not None and max_target_count > 0 else None
+        )
+        mesh.household_composition_index = (
+            mesh.household_count / mesh.population
+            if mesh.household_count is not None and mesh.population is not None and mesh.population > 0
+            else None
+        )
+        feature_values = {
+            "target_age_population_index": mesh.target_age_population_index,
+            "household_composition_index": mesh.household_composition_index,
+            "huff_visit_probability": mesh.huff_probability,
+            "accessibility_index": mesh.accessibility_index,
+            "commercial_concentration_index": mesh.commercial_concentration_index,
+        }
+        active = [name for name in SCORE_FEATURES if enabled.get(name, False)]
+        for name in active:
+            _validate_index(name, feature_values[name])
+        mesh.used_features = [name for name in active if feature_values[name] is not None]
+        mesh.missing_features = [name for name in active if feature_values[name] is None]
+        mesh.used_weights = {}
+        mesh.score_method = f"regional_features_v1:{app_value}:{missing_policy}"
+        if missing_policy == "strict" and mesh.missing_features:
             mesh.acquisition_potential_score = None
             continue
-        population_factor = mesh.population / max_population if max_population > 0 else 0.0
-        raw = (
-            0.35 * population_factor
-            + 0.25 * mesh.young_adult_ratio
-            + 0.20 * mesh.smartphone_affinity
-            + 0.20 * mesh.huff_probability
-        )
+        available_weight = sum(selected_weights[name] for name in mesh.used_features)
+        if available_weight <= 0:
+            mesh.acquisition_potential_score = None
+            continue
+        mesh.used_weights = {
+            name: round(selected_weights[name] / available_weight, 6)
+            for name in mesh.used_features
+        }
+        raw = sum(feature_values[name] * mesh.used_weights[name] for name in mesh.used_features)  # type: ignore[operator]
         mesh.acquisition_potential_score = round(max(0.0, min(100.0, raw * 100)), 2)
 
 

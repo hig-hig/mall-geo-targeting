@@ -5,7 +5,8 @@
     "latitude": 35.6550,
     "longitude": 139.7560,
     "floor_area_m2": 85000,
-    "attractiveness": 1.0
+    "attractiveness": 1.0,
+    "app_value": "coupon"
   },
   "competitor_malls": [
     {
@@ -26,4 +27,3 @@
     }
   ]
 }
-

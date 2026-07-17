@@ -16,6 +16,7 @@ LOGGER = logging.getLogger(__name__)
 def run(project_root: Path, data_mode: str | None = None) -> dict[str, object]:
     malls_config = load_yaml(project_root / "config" / "malls.yaml")
     analysis_config = load_yaml(project_root / "config" / "analysis.yaml")
+    feature_config = load_yaml(project_root / "config" / "feature_weights.yaml")
     target = mall_from_dict(malls_config["target_mall"])
     competitors = [mall_from_dict(value) for value in malls_config.get("competitor_malls", [])]
     meshes = generate_meshes(target, int(analysis_config["radius_m"]), int(analysis_config["mesh_size_m"]))
@@ -31,7 +32,16 @@ def run(project_root: Path, data_mode: str | None = None) -> dict[str, object]:
     else:
         raise ValueError(f"未対応のdata_modeです: {selected_mode!r} (sampleまたはestat)")
     calculate_huff(meshes, target, competitors, float(analysis_config["huff_distance_exponent"]))
-    calculate_potential(meshes)
+    presets = feature_config.get("presets", {})
+    if target.app_value not in presets:
+        raise ValueError(f"app_valueに対応する重みプリセットがありません: {target.app_value}")
+    calculate_potential(
+        meshes,
+        weights=presets[target.app_value],
+        missing_policy=str(feature_config.get("missing_policy", "renormalize")),
+        enabled_features=feature_config.get("enabled_features"),
+        app_value=target.app_value,
+    )
     threshold = assign_delivery_zones(meshes, float(analysis_config["high_score_quantile"]))
     paths = write_outputs(meshes, target, project_root / str(analysis_config["output_directory"]))
     result = {"data_mode": selected_mode, "mesh_count": len(meshes), "scored_count": sum(m.acquisition_potential_score is not None for m in meshes), "delivery_zone_count": sum(m.is_delivery_zone for m in meshes), "threshold": threshold, "outputs": paths}

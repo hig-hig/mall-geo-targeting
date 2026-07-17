@@ -37,10 +37,10 @@ def mall_from_dict(value: dict[str, Any]) -> Mall:
             longitude=float(value["longitude"]),
             floor_area_m2=float(value["floor_area_m2"]),
             attractiveness=float(value.get("attractiveness", 1.0)),
+            app_value=str(value.get("app_value", "coupon")),
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise ConfigurationError(f"モール設定が不正です: {exc}") from exc
     if mall.floor_area_m2 <= 0 or mall.attractiveness <= 0:
         raise ConfigurationError("floor_area_m2とattractivenessは正数である必要があります")
     return mall
-

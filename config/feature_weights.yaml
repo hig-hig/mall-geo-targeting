@@ -1,0 +1,47 @@
+{
+  "missing_policy": "renormalize",
+  "enabled_features": {
+    "target_age_population_index": true,
+    "household_composition_index": true,
+    "huff_visit_probability": true,
+    "accessibility_index": true,
+    "commercial_concentration_index": true
+  },
+  "presets": {
+    "coupon": {
+      "target_age_population_index": 0.30,
+      "household_composition_index": 0.15,
+      "huff_visit_probability": 0.20,
+      "accessibility_index": 0.15,
+      "commercial_concentration_index": 0.20
+    },
+    "parking": {
+      "target_age_population_index": 0.15,
+      "household_composition_index": 0.20,
+      "huff_visit_probability": 0.20,
+      "accessibility_index": 0.35,
+      "commercial_concentration_index": 0.10
+    },
+    "event": {
+      "target_age_population_index": 0.25,
+      "household_composition_index": 0.10,
+      "huff_visit_probability": 0.20,
+      "accessibility_index": 0.15,
+      "commercial_concentration_index": 0.30
+    },
+    "crm": {
+      "target_age_population_index": 0.30,
+      "household_composition_index": 0.30,
+      "huff_visit_probability": 0.20,
+      "accessibility_index": 0.10,
+      "commercial_concentration_index": 0.10
+    },
+    "tenant_info": {
+      "target_age_population_index": 0.20,
+      "household_composition_index": 0.10,
+      "huff_visit_probability": 0.15,
+      "accessibility_index": 0.15,
+      "commercial_concentration_index": 0.40
+    }
+  }
+}

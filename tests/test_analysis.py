@@ -24,7 +24,11 @@ def test_population_join_distinguishes_zero_and_missing(tmp_path: Path) -> None:
     join_population([mesh], path)
     assert mesh.population == 0
     assert mesh.smartphone_affinity is None
-    assert mesh.missing_fields == ["smartphone_affinity"]
+    assert mesh.missing_fields == [
+        "household_count",
+        "accessibility_index",
+        "commercial_concentration_index",
+    ]
 
 
 def test_huff_probability_is_normalized() -> None:
@@ -33,12 +37,39 @@ def test_huff_probability_is_normalized() -> None:
     assert mesh.huff_probability == pytest.approx(0.5, rel=0.02)
 
 
-def test_missing_input_produces_missing_score_but_zero_is_scored() -> None:
+def test_renormalize_scores_available_features_and_zero_is_observed() -> None:
     zero = Mesh("zero", 0, 0, 35, 139, [], population=0, young_adult_ratio=0.0, smartphone_affinity=0.0, huff_probability=0.0)
     missing = Mesh("missing", 0, 0, 35, 139, [], population=None, young_adult_ratio=0.2, smartphone_affinity=0.8, huff_probability=0.5)
     calculate_potential([zero, missing])
     assert zero.acquisition_potential_score == 0.0
-    assert missing.acquisition_potential_score is None
+    assert missing.acquisition_potential_score == 50.0
+    assert missing.used_features == ["huff_visit_probability"]
+    assert missing.used_weights == {"huff_visit_probability": 1.0}
+
+
+def test_strict_mode_keeps_score_missing_when_an_enabled_feature_is_missing() -> None:
+    mesh = Mesh("missing", 0, 0, 35, 139, [], population=100, young_adult_ratio=0.2, huff_probability=0.5)
+    calculate_potential([mesh], missing_policy="strict")
+    assert mesh.acquisition_potential_score is None
+    assert "accessibility_index" in mesh.missing_features
+    assert mesh.used_weights == {}
+
+
+def test_smartphone_affinity_does_not_affect_score() -> None:
+    common = dict(
+        population=100,
+        young_adult_ratio=0.3,
+        household_count=50,
+        huff_probability=0.6,
+        accessibility_index=0.7,
+        commercial_concentration_index=0.8,
+    )
+    low = Mesh("low", 0, 0, 35, 139, [], smartphone_affinity=0.0, **common)
+    high = Mesh("high", 0, 0, 35, 139, [], smartphone_affinity=1.0, **common)
+    calculate_potential([low, high])
+    assert low.acquisition_potential_score == high.acquisition_potential_score
+    assert "smartphone_affinity" not in low.used_features
+    assert sum(low.used_weights.values()) == pytest.approx(1.0)
 
 
 def test_delivery_zone_ignores_missing_scores() -> None:
@@ -46,4 +77,3 @@ def test_delivery_zone_ignores_missing_scores() -> None:
     threshold = assign_delivery_zones(meshes, 0.8)
     assert threshold == 30.0
     assert [m.is_delivery_zone for m in meshes] == [False, False, True, False]
-
