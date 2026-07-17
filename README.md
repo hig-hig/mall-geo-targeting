@@ -32,10 +32,10 @@ mall-geo-targeting --project-root . --data-mode sample
 
 ```bash
 # e-Stat人口＋ローカルOSM GeoJSON
-mall-geo-targeting --project-root . --data-mode estat --accessibility-mode osm
+mall-geo-targeting --project-root . --data-mode estat --accessibility-mode osm --commercial-mode osm
 
 # 到達性を明示的に使わない
-mall-geo-targeting --project-root . --accessibility-mode none
+mall-geo-targeting --project-root . --accessibility-mode none --commercial-mode none
 ```
 
 `outputs/` に次を作成します。
@@ -57,6 +57,8 @@ pytest
 - `config/feature_weights.yaml`: 欠損処理方式、有効特徴量、アプリ価値別の重みプリセット
 - `config/osm.yaml`: ローカルOSM GeoJSON、座標系、対象タグ・道路種別
 - `config/accessibility_weights.yaml`: 到達性6要素の重みと距離・密度の飽和閾値
+- `config/commercial.yaml`: 商業POIファイル、座標系、収録カテゴリ、分類タグ
+- `config/commercial_weights.yaml`: 商業集積6要素の重みと密度・距離の飽和閾値
 - `config/licenses.yaml`: データの出典、URL、利用条件、商用利用可否、取得日、加工内容
 - `data/sample_population.csv`: 行帯キー（`R_000`等）で結合する架空の人口、対象年代比率、世帯数、到達性、商業集積。実データでは個別メッシュIDを指定でき、個別値が行帯値より優先されます
 - Huff効用: `床面積 × 魅力度 / 距離^距離指数`
@@ -73,7 +75,7 @@ pytest
 - `household_composition_index`: 世帯数÷総人口。世帯構成を示す初期代理指標で、総人口ゼロまたはいずれかが欠損なら欠損
 - `huff_visit_probability`: 対象・競合モールの床面積、魅力度、距離から算出するHuff来館可能性
 - `accessibility_index`: ローカルOSM由来の道路・公共交通・駐車場とモール直線距離から作る初期到達性指数。明示的なサンプルモードでは旧CSVの架空値も利用可能
-- `commercial_concentration_index`: 店舗・事業所などから将来作る商業集積指数。現在はサンプルCSVの架空値だけ
+- `commercial_concentration_index`: ローカル商業POIの分類別密度と最近接距離から作る初期商業集積指数。明示的なサンプルモードでは旧CSVの架空値も利用可能
 
 各指数は0〜1で、重み付き合計を0〜100へ変換します。対象年代は現在のe-Stat模擬データでは15～64歳ですが、施策の実ターゲットに合わせた年齢階級へ今後変更する必要があります。
 
@@ -140,6 +142,8 @@ minimum_score_coverage: 0.40
 
 同様に、`data/sample_population.csv`内の`accessibility_index`は後方互換用の架空サンプルとして非推奨です。`accessibility_mode=sample`を明示した場合だけ利用し、`osm`ではローカルGeoJSON由来値が必ず優先され、`none`では欠損に戻します。
 
+`commercial_concentration_index`も旧CSV内の架空値は非推奨です。`commercial_mode=sample`の場合だけ利用し、`osm`または`file`ではローカルGeoJSON由来値が必ず優先され、`none`では欠損に戻します。
+
 ## OpenStreetMap到達性モード
 
 パイプライン実行中に外部API、Overpass API、OpenStreetMapサイトを呼び出しません。対象モール周辺を十分に含むGeoJSONを利用者が手動取得し、`data/raw/osm/`へ配置します。同梱の`sample_osm.geojson`は処理確認用の模擬形状・模擬タグで、OpenStreetMapの実データではありません。
@@ -195,6 +199,65 @@ OpenStreetMap実データはOpen Database License（ODbL）に従います。商
 ### 4. 将来のルーティング拡張
 
 現在は`osm.py`がGeoJSON読込と特徴量計算を担当し、パイプラインには最終的な`accessibility_index`と監査値を渡します。将来OSRM、Valhalla、GraphHopperなどを導入する場合は、事前構築したローカルルーティング結果を読む別アダプターを追加し、`accessibility_mode`で選択します。人口/e-Stat処理や獲得ポテンシャル計算を変更せず、到達性バックエンドだけを差し替える方針です。
+
+## 商業POIモード
+
+商業POIもパイプライン実行中には外部APIやWebサイトから取得しません。利用者が手動取得したWGS84 GeoJSONを使います。
+
+### 1. データ源と配置
+
+初期版の主入力はOpenStreetMapのPOIです。次の2方式を選べます。
+
+- `commercial_mode=osm`: `config/osm.yaml`と同じGeoJSONから道路・交通と商業POIを同時抽出
+- `commercial_mode=file`: `config/commercial.yaml`の別GeoJSONを利用
+
+別ファイルは次へ配置します。
+
+```text
+data/raw/commercial/your_commercial_poi.geojson
+```
+
+PointとPolygonに対応します。分類タグは`config/commercial.yaml`で変更でき、最低限、小売、スーパー、コンビニ、飲食店、カフェ、娯楽、サービス、オフィス、ホテル、学校、保育施設を分類します。`available_categories`には、そのファイルが収録対象としているカテゴリだけを明記してください。
+
+- 収録対象カテゴリでメッシュ内に地物がない：観測された0件
+- 収録対象外カテゴリ：欠損
+
+抽出範囲不足を0件と誤認しないよう、分析範囲と最近接距離の評価範囲を十分に覆うファイルを用意してください。架空の店舗や施設は生成しません。
+
+### 2. Polygonと空間集計
+
+Pointは所属メッシュへ集計します。Polygonは重心だけでは判定せず、Polygon頂点のメッシュ包含、メッシュ角のPolygon包含、境界線交差を確認し、空間的に重なる全メッシュへ1件ずつ集計します。最近接距離もローカルメートル投影上でPolygon内部または境界まで計算します。経度・緯度の単純差は使用しません。
+
+出力する主な監査値は次のとおりです。
+
+- `retail_count`、`supermarket_count`、`convenience_store_count`
+- `restaurant_count`、`cafe_count`
+- `entertainment_count`、`service_count`、`office_count`、`hotel_count`
+- `commercial_poi_total`、`commercial_poi_density`
+- `nearest_commercial_poi_distance_m`
+- `commercial_concentration_index`
+- `commercial_coverage`、`commercial_used_components`
+
+### 3. 商業集積指数
+
+`config/commercial_weights.yaml`で次の6要素を管理します。
+
+- 小売密度
+- 飲食密度
+- サービス密度
+- 娯楽施設密度
+- オフィス密度
+- 商業POIへの近さ
+
+欠損要素はゼロ補完せず、利用可能な元重みだけで再正規化します。`commercial_coverage`は利用できた元重みの割合です。
+
+この指数はPOIの件数、密度、近さを表す初期特徴量です。店舗の規模、売上、来店客数、購買力、営業状況、データの完全性を保証せず、DL確率でもありません。
+
+### 4. ライセンスと将来拡張
+
+OSMを使う場合はODbLに従い、`© OpenStreetMap contributors`を表示し、加工データベースの共有・提供条件を確認します。別ファイルの場合はデータセットごとに商用利用可否、出典表示、改変、再配布条件を`config/licenses.yaml`へ記録してください。
+
+将来、経済センサス、国土数値情報、自治体オープンデータなどを追加する場合は、各データを共通の分類済みPOIモデルへ変換するアダプターを追加します。人口、到達性、スコア計算を変更せず、`commercial_mode`の入力バックエンドだけを差し替える疎結合方針です。
 
 ## e-Stat実データモード
 
@@ -264,13 +327,13 @@ mall-geo-targeting --project-root . --data-mode estat
 
 値の状態は`*_status`列に`observed`、`missing`、`suppressed`、`not_applicable`として出力します。`observed`かつ値が`0`の場合だけ実数ゼロです。他の状態は値を`null`のまま保持し、ゼロ補完しません。
 
-e-Statモードでは取得できた人口・世帯・年齢階級だけを保持し、商業集積は欠損のままです。OSMモードを同時指定しなければ到達性も欠損です。既定の`renormalize`では取得できた特徴量とHuffだけで再正規化して獲得ポテンシャルを算出します。人口統計が結合できないメッシュではHuffだけの監査用スコアになりますが、初期coverage基準では配信不適格です。全特徴量を要求する場合は`strict`へ変更してください。15～64歳人口比率は既存出力との互換用属性として計算しますが、厳密な「若年成人比率」ではありません。
+e-Statモードでは取得できた人口・世帯・年齢階級だけを保持します。OSM・商業モードを同時指定しなければ到達性と商業集積は欠損です。既定の`renormalize`では取得できた特徴量とHuffだけで再正規化して獲得ポテンシャルを算出します。人口統計が結合できないメッシュでは、他のモードも無効ならHuffだけの監査用スコアになります。全特徴量を要求する場合は`strict`へ変更してください。15～64歳人口比率は既存出力との互換用属性として計算しますが、厳密な「若年成人比率」ではありません。
 
 ## ディレクトリ
 
 ```text
 config/  設定YAML
-data/    架空サンプルと手動配置したe-Stat・OSM入力データ
+data/    架空サンプルと手動配置したe-Stat・OSM・商業POI入力データ
 outputs/ 生成物
 src/     Pythonパッケージ
 tests/   pytest

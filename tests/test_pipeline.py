@@ -80,3 +80,27 @@ def test_osm_mode_overrides_deprecated_sample_accessibility() -> None:
     properties = geojson["features"][0]["properties"]
     assert properties["accessibility_coverage"] == 1.0
     assert properties["accessibility_used_components"]
+
+
+def test_estat_osm_accessibility_and_commercial_poi_run_together() -> None:
+    root = Path(__file__).parents[1]
+    result = run(root, data_mode="estat", accessibility_mode="osm", commercial_mode="osm")
+    assert result["commercial_mode"] == "osm"
+    assert result["commercial_coverage_count"] == result["mesh_count"]
+    assert result["mean_commercial_coverage"] == 1.0
+    geojson = json.loads(result["outputs"]["geojson"].read_text(encoding="utf-8"))
+    properties = geojson["features"][0]["properties"]
+    assert properties["commercial_concentration_index"] is not None
+    assert properties["commercial_poi_total"] is not None
+    assert properties["commercial_used_components"]
+    assert "commercial_concentration_index" in properties["used_features"]
+
+
+def test_separate_commercial_file_mode_overrides_sample_value() -> None:
+    root = Path(__file__).parents[1]
+    result = run(root, data_mode="sample", accessibility_mode="sample", commercial_mode="file")
+    assert result["commercial_mode"] == "file"
+    geojson = json.loads(result["outputs"]["geojson"].read_text(encoding="utf-8"))
+    properties = geojson["features"][0]["properties"]
+    assert properties["commercial_coverage"] == 1.0
+    assert properties["commercial_used_components"]

@@ -18,8 +18,20 @@
       "commercial_use_allowed": true,
       "attribution_required": true,
       "retrieved_at": null,
-      "processing": "利用者が手動取得したWGS84 GeoJSONから設定対象の道路・駅・バス停・駐車場を抽出し、ローカルメートル投影でメッシュ内延長、密度、最近接距離、件数、到達性指数を算出する。",
+      "processing": "利用者が手動取得したWGS84 GeoJSONから設定対象の道路・駅・バス停・駐車場・商業POIを抽出し、ローカルメートル投影でメッシュ内延長、密度、最近接距離、件数、到達性・商業集積指数を算出する。",
       "note": "実データ利用時は© OpenStreetMap contributorsの表示、ODbL、加工データベースの共有条件を確認する。同梱サンプルは模擬データ。"
+    },
+    {
+      "name": "ローカル商業POIファイル（データセット別記録テンプレート）",
+      "source": "同梱ファイルは模擬データ。実データ導入時に提供者名へ置換",
+      "url": null,
+      "license": "同梱模擬データ。実データ導入時に利用規約へ置換",
+      "commercial_use_allowed": true,
+      "attribution_required": false,
+      "redistribution_conditions": "同梱模擬データには制限なし。実データの再配布条件を記録すること。",
+      "retrieved_at": null,
+      "processing": "Pointは所属メッシュ、Polygonは空間的に重なる全メッシュへ分類別件数を集計し、密度、最近接距離、商業集積指数を算出する。",
+      "note": "実データへ差し替える前に、商用利用可否、出典表示、改変・再配布、派生データベース条件を必ず更新する。"
     }
   ]
 }

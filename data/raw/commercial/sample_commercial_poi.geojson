@@ -1,0 +1,17 @@
+{
+  "type": "FeatureCollection",
+  "name": "Synthetic commercial POI fixtures",
+  "features": [
+    {"type": "Feature", "properties": {"shop": "mall", "name": "模擬商業施設"}, "geometry": {"type": "Polygon", "coordinates": [[[139.7545,35.6540],[139.7575,35.6540],[139.7575,35.6560],[139.7545,35.6560],[139.7545,35.6540]]]}},
+    {"type": "Feature", "properties": {"shop": "supermarket", "name": "模擬スーパー"}, "geometry": {"type": "Point", "coordinates": [139.751,35.657]}},
+    {"type": "Feature", "properties": {"shop": "convenience", "name": "模擬コンビニ"}, "geometry": {"type": "Point", "coordinates": [139.759,35.653]}},
+    {"type": "Feature", "properties": {"amenity": "restaurant", "name": "模擬レストラン"}, "geometry": {"type": "Point", "coordinates": [139.756,35.658]}},
+    {"type": "Feature", "properties": {"amenity": "cafe", "name": "模擬カフェ"}, "geometry": {"type": "Point", "coordinates": [139.753,35.656]}},
+    {"type": "Feature", "properties": {"amenity": "cinema", "name": "模擬シネマ"}, "geometry": {"type": "Polygon", "coordinates": [[[139.758,35.656],[139.760,35.656],[139.760,35.658],[139.758,35.658],[139.758,35.656]]]}},
+    {"type": "Feature", "properties": {"amenity": "bank", "name": "模擬銀行"}, "geometry": {"type": "Point", "coordinates": [139.755,35.652]}},
+    {"type": "Feature", "properties": {"office": "company", "name": "模擬オフィス"}, "geometry": {"type": "Point", "coordinates": [139.749,35.655]}},
+    {"type": "Feature", "properties": {"tourism": "hotel", "name": "模擬ホテル"}, "geometry": {"type": "Point", "coordinates": [139.762,35.660]}},
+    {"type": "Feature", "properties": {"amenity": "school", "name": "模擬学校"}, "geometry": {"type": "Point", "coordinates": [139.746,35.650]}},
+    {"type": "Feature", "properties": {"amenity": "kindergarten", "name": "模擬保育施設"}, "geometry": {"type": "Point", "coordinates": [139.764,35.651]}}
+  ]
+}

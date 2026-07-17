@@ -83,6 +83,20 @@ class Mesh:
     accessibility_coverage: float | None = None
     accessibility_used_components: list[str] = field(default_factory=list)
     commercial_concentration_index: float | None = None
+    retail_count: int | None = None
+    supermarket_count: int | None = None
+    convenience_store_count: int | None = None
+    restaurant_count: int | None = None
+    cafe_count: int | None = None
+    entertainment_count: int | None = None
+    service_count: int | None = None
+    office_count: int | None = None
+    hotel_count: int | None = None
+    commercial_poi_total: int | None = None
+    commercial_poi_density: float | None = None
+    nearest_commercial_poi_distance_m: float | None = None
+    commercial_coverage: float | None = None
+    commercial_used_components: list[str] = field(default_factory=list)
     # Deprecated input retained only for backward-compatible CSV ingestion.
     # It is never used by the Step 3 score.
     smartphone_affinity: float | None = None

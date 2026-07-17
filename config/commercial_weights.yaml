@@ -1,0 +1,18 @@
+{
+  "weights": {
+    "retail_density": 0.25,
+    "food_density": 0.20,
+    "service_density": 0.15,
+    "entertainment_density": 0.15,
+    "office_density": 0.10,
+    "commercial_proximity": 0.15
+  },
+  "thresholds": {
+    "retail_saturation_per_km2": 80,
+    "food_saturation_per_km2": 100,
+    "service_saturation_per_km2": 60,
+    "entertainment_saturation_per_km2": 30,
+    "office_saturation_per_km2": 60,
+    "commercial_max_distance_m": 1000
+  }
+}

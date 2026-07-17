@@ -1,0 +1,18 @@
+{
+  "path": "data/raw/commercial/sample_commercial_poi.geojson",
+  "crs": "EPSG:4326",
+  "available_categories": ["retail", "supermarket", "convenience_store", "restaurant", "cafe", "entertainment", "service", "office", "hotel", "school", "childcare"],
+  "categories": {
+    "retail": [{"key": "shop", "values": ["department_store", "mall", "clothes", "electronics", "books"]}],
+    "supermarket": [{"key": "shop", "values": ["supermarket"]}],
+    "convenience_store": [{"key": "shop", "values": ["convenience"]}],
+    "restaurant": [{"key": "amenity", "values": ["restaurant", "fast_food"]}],
+    "cafe": [{"key": "amenity", "values": ["cafe"]}],
+    "entertainment": [{"key": "amenity", "values": ["cinema", "theatre"]}, {"key": "leisure", "values": ["amusement_arcade"]}],
+    "service": [{"key": "amenity", "values": ["bank", "pharmacy", "clinic", "post_office"]}],
+    "office": [{"key": "office", "values": ["company", "government"]}],
+    "hotel": [{"key": "tourism", "values": ["hotel"]}],
+    "school": [{"key": "amenity", "values": ["school"]}],
+    "childcare": [{"key": "amenity", "values": ["kindergarten", "childcare"]}]
+  }
+}
