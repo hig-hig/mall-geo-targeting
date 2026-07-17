@@ -7,6 +7,7 @@ from mall_geo_targeting.config import load_yaml, mall_from_dict
 def test_all_app_value_presets_cover_score_features() -> None:
     root = Path(__file__).parents[1]
     config = load_yaml(root / "config" / "feature_weights.yaml")
+    assert config["minimum_score_coverage"] == 0.40
     assert set(config["presets"]) == {"coupon", "parking", "event", "crm", "tenant_info"}
     for weights in config["presets"].values():
         assert set(weights) == set(SCORE_FEATURES)

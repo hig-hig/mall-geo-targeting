@@ -1,5 +1,6 @@
 {
   "missing_policy": "renormalize",
+  "minimum_score_coverage": 0.40,
   "enabled_features": {
     "target_age_population_index": true,
     "household_composition_index": true,

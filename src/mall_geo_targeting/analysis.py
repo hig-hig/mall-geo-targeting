@@ -173,12 +173,24 @@ def _validate_index(name: str, value: float | None) -> float | None:
     return value
 
 
+def score_quality_tier(coverage: float) -> str:
+    """Classify score coverage at fixed, auditable boundaries."""
+    if coverage >= 0.80:
+        return "A"
+    if coverage >= 0.60:
+        return "B"
+    if coverage >= 0.40:
+        return "C"
+    return "D"
+
+
 def calculate_potential(
     meshes: list[Mesh],
     weights: dict[str, float] | None = None,
     missing_policy: str = "renormalize",
     enabled_features: dict[str, bool] | None = None,
     app_value: str = "custom",
+    minimum_score_coverage: float = 0.40,
 ) -> None:
     """Calculate an explainable potential score, never a download probability."""
     selected_weights = weights or {
@@ -191,6 +203,8 @@ def calculate_potential(
     enabled = enabled_features or {name: True for name in SCORE_FEATURES}
     if missing_policy not in ("renormalize", "strict"):
         raise ValueError("missing_policyはrenormalizeまたはstrictを指定してください")
+    if not 0 <= minimum_score_coverage <= 1:
+        raise ValueError("minimum_score_coverageは0から1の範囲で指定してください")
     unknown = set(selected_weights) - set(SCORE_FEATURES)
     if unknown:
         raise ValueError(f"未対応のスコア特徴量です: {', '.join(sorted(unknown))}")
@@ -227,16 +241,24 @@ def calculate_potential(
             "commercial_concentration_index": mesh.commercial_concentration_index,
         }
         active = [name for name in SCORE_FEATURES if enabled.get(name, False)]
+        total_enabled_weight = sum(selected_weights[name] for name in active)
+        if total_enabled_weight <= 0:
+            raise ValueError("有効特徴量の重み合計は正数である必要があります")
         for name in active:
             _validate_index(name, feature_values[name])
         mesh.used_features = [name for name in active if feature_values[name] is not None]
         mesh.missing_features = [name for name in active if feature_values[name] is None]
+        mesh.feature_count_used = len(mesh.used_features)
+        mesh.feature_count_enabled = len(active)
+        available_weight = sum(selected_weights[name] for name in mesh.used_features)
+        mesh.score_coverage = round(available_weight / total_enabled_weight, 6)
+        mesh.score_quality_tier = score_quality_tier(mesh.score_coverage)
         mesh.used_weights = {}
         mesh.score_method = f"regional_features_v1:{app_value}:{missing_policy}"
+        mesh.eligible_for_delivery = False
         if missing_policy == "strict" and mesh.missing_features:
             mesh.acquisition_potential_score = None
             continue
-        available_weight = sum(selected_weights[name] for name in mesh.used_features)
         if available_weight <= 0:
             mesh.acquisition_potential_score = None
             continue
@@ -246,16 +268,27 @@ def calculate_potential(
         }
         raw = sum(feature_values[name] * mesh.used_weights[name] for name in mesh.used_features)  # type: ignore[operator]
         mesh.acquisition_potential_score = round(max(0.0, min(100.0, raw * 100)), 2)
+        mesh.eligible_for_delivery = mesh.score_coverage >= minimum_score_coverage
 
 
 def assign_delivery_zones(meshes: list[Mesh], quantile: float) -> float | None:
     if not 0 <= quantile <= 1:
         raise ValueError("high_score_quantileは0から1の範囲で指定してください")
-    scores = sorted(m.acquisition_potential_score for m in meshes if m.acquisition_potential_score is not None)
+    for mesh in meshes:
+        mesh.is_delivery_zone = False
+    scores = sorted(
+        m.acquisition_potential_score
+        for m in meshes
+        if m.acquisition_potential_score is not None and m.eligible_for_delivery
+    )
     if not scores:
         return None
     index = min(len(scores) - 1, math.ceil(quantile * len(scores)) - 1)
     threshold = scores[max(0, index)]
     for mesh in meshes:
-        mesh.is_delivery_zone = mesh.acquisition_potential_score is not None and mesh.acquisition_potential_score >= threshold
+        mesh.is_delivery_zone = (
+            mesh.eligible_for_delivery
+            and mesh.acquisition_potential_score is not None
+            and mesh.acquisition_potential_score >= threshold
+        )
     return threshold

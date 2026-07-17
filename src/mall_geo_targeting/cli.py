@@ -22,6 +22,7 @@ def main() -> int:
         logging.getLogger(__name__).error("分析に失敗しました: %s", exc)
         return 1
     print(f"モード: {result['data_mode']} / メッシュ: {result['mesh_count']} / スコア算出: {result['scored_count']} / 配信ゾーン: {result['delivery_zone_count']}")
+    print(f"配信適格: {result['eligible_count']} / coverage除外: {result['excluded_by_coverage_count']} / 品質ランク: {result['quality_counts']}")
     for kind, path in result["outputs"].items():
         print(f"{kind}: {path}")
     return 0

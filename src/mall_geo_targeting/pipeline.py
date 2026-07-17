@@ -41,9 +41,14 @@ def run(project_root: Path, data_mode: str | None = None) -> dict[str, object]:
         missing_policy=str(feature_config.get("missing_policy", "renormalize")),
         enabled_features=feature_config.get("enabled_features"),
         app_value=target.app_value,
+        minimum_score_coverage=float(feature_config.get("minimum_score_coverage", 0.40)),
     )
     threshold = assign_delivery_zones(meshes, float(analysis_config["high_score_quantile"]))
     paths = write_outputs(meshes, target, project_root / str(analysis_config["output_directory"]))
-    result = {"data_mode": selected_mode, "mesh_count": len(meshes), "scored_count": sum(m.acquisition_potential_score is not None for m in meshes), "delivery_zone_count": sum(m.is_delivery_zone for m in meshes), "threshold": threshold, "outputs": paths}
+    quality_counts = {
+        tier: sum(mesh.score_quality_tier == tier for mesh in meshes)
+        for tier in ("A", "B", "C", "D")
+    }
+    result = {"data_mode": selected_mode, "mesh_count": len(meshes), "scored_count": sum(m.acquisition_potential_score is not None for m in meshes), "eligible_count": sum(m.eligible_for_delivery for m in meshes), "excluded_by_coverage_count": sum(m.acquisition_potential_score is not None and not m.eligible_for_delivery for m in meshes), "quality_counts": quality_counts, "delivery_zone_count": sum(m.is_delivery_zone for m in meshes), "threshold": threshold, "outputs": paths}
     LOGGER.info("パイプライン完了: %s", result)
     return result

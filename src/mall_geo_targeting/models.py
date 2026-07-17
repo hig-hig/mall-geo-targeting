@@ -83,5 +83,10 @@ class Mesh:
     missing_features: list[str] = field(default_factory=list)
     used_weights: dict[str, float] = field(default_factory=dict)
     score_method: str | None = None
+    score_coverage: float | None = None
+    score_quality_tier: str | None = None
+    feature_count_used: int = 0
+    feature_count_enabled: int = 0
+    eligible_for_delivery: bool = False
     is_delivery_zone: bool = False
     missing_fields: list[str] = field(default_factory=list)
