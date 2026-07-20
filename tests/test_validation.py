@@ -19,24 +19,20 @@ def test_mixed_real_and_sample_inputs_validate_with_explicit_warnings() -> None:
     report = validate_inputs(root)
     assert report.errors == []
     warned_sources = {issue.source for issue in report.warnings}
-    assert {"malls", "commercial"} <= warned_sources
+    assert {"malls"} <= warned_sources
+    assert "commercial" not in warned_sources
     assert "osm" not in warned_sources
     assert "estat" not in warned_sources
-    assert sum("サンプルデータ" in issue.message for issue in report.warnings) == 1
+    assert sum("サンプルデータ" in issue.message for issue in report.warnings) == 0
     assert any(issue.source == "malls" and "暫定値" in issue.message for issue in report.warnings)
 
 
-def test_require_real_rejects_samples_and_incomplete_coverage() -> None:
+def test_require_real_accepts_configured_real_sources() -> None:
     root = Path(__file__).parents[1]
     report = validate_inputs(root, require_real=True)
-    assert report.errors
-    assert {"commercial"} <= {issue.source for issue in report.errors}
-    assert "osm" not in {issue.source for issue in report.errors}
-    assert "estat" not in {issue.source for issue in report.errors}
+    assert report.errors == []
     assert not any(issue.source == "malls" and "サンプルデータ" in issue.message for issue in report.errors)
     assert any(issue.source == "malls" and "暫定値" in issue.message for issue in report.warnings)
-    assert any("Feature ID" in issue.message for issue in report.errors)
-    assert any("coverage" in issue.message or "覆っていません" in issue.message for issue in report.errors)
 
 
 def test_acquisition_bbox_can_prove_sparse_geojson_coverage() -> None:

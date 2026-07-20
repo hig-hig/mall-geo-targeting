@@ -136,6 +136,62 @@ def _distance_to_poi(point: tuple[float, float], poi: CommercialPoi) -> float:
     return min(_segment_distance(point, a, b) for a, b in zip(polygon, polygon[1:] + polygon[:1], strict=True))
 
 
+def _poi_bounds(poi: CommercialPoi) -> tuple[float, float, float, float]:
+    if poi.point is not None:
+        return poi.point[0], poi.point[1], poi.point[0], poi.point[1]
+    polygon = poi.polygon or []
+    xs, ys = [point[0] for point in polygon], [point[1] for point in polygon]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+class _CommercialSpatialIndex:
+    def __init__(self, pois: list[CommercialPoi], cell_size_m: float = 1000) -> None:
+        self.pois = pois
+        self.cell_size_m = cell_size_m
+        self.cells: dict[tuple[int, int], list[int]] = {}
+        for index, poi in enumerate(pois):
+            xmin, ymin, xmax, ymax = _poi_bounds(poi)
+            for x_cell in range(int(xmin // cell_size_m), int(xmax // cell_size_m) + 1):
+                for y_cell in range(int(ymin // cell_size_m), int(ymax // cell_size_m) + 1):
+                    self.cells.setdefault((x_cell, y_cell), []).append(index)
+
+    def candidates(self, bounds: tuple[float, float, float, float]) -> list[CommercialPoi]:
+        xmin, ymin, xmax, ymax = bounds
+        indexes: set[int] = set()
+        for x_cell in range(int(xmin // self.cell_size_m), int(xmax // self.cell_size_m) + 1):
+            for y_cell in range(int(ymin // self.cell_size_m), int(ymax // self.cell_size_m) + 1):
+                indexes.update(self.cells.get((x_cell, y_cell), ()))
+        return [self.pois[index] for index in indexes]
+
+    def nearest_distance(self, point: tuple[float, float]) -> float | None:
+        if not self.cells:
+            return None
+        x_cell = int(point[0] // self.cell_size_m)
+        y_cell = int(point[1] // self.cell_size_m)
+        max_radius = max(
+            max(abs(cell[0] - x_cell), abs(cell[1] - y_cell)) for cell in self.cells
+        )
+        visited: set[int] = set()
+        best = math.inf
+        for radius in range(max_radius + 1):
+            for x in range(x_cell - radius, x_cell + radius + 1):
+                for y in range(y_cell - radius, y_cell + radius + 1):
+                    if radius and x_cell - radius < x < x_cell + radius and y_cell - radius < y < y_cell + radius:
+                        continue
+                    for index in self.cells.get((x, y), ()):
+                        if index not in visited:
+                            visited.add(index)
+                            best = min(best, _distance_to_poi(point, self.pois[index]))
+            xmin = (x_cell - radius) * self.cell_size_m
+            ymin = (y_cell - radius) * self.cell_size_m
+            xmax = (x_cell + radius + 1) * self.cell_size_m
+            ymax = (y_cell + radius + 1) * self.cell_size_m
+            distance_to_outside = min(point[0] - xmin, xmax - point[0], point[1] - ymin, ymax - point[1])
+            if best <= distance_to_outside:
+                return best
+        return best if math.isfinite(best) else None
+
+
 def calculate_commercial_concentration(
     meshes: list[Mesh],
     data: CommercialPoiData,
@@ -150,7 +206,7 @@ def calculate_commercial_concentration(
     total_weight = sum(float(weights[name]) for name in components)
     if total_weight <= 0:
         raise ValueError("商業集積要素の重み合計は正数である必要があります")
-    pois_by_category = {name: [poi for poi in data.pois if poi.category == name] for name in CATEGORIES}
+    spatial_index = _CommercialSpatialIndex(data.pois)
     count_fields = {name: f"{name}_count" for name in COMMERCIAL_CATEGORIES}
     for mesh in meshes:
         polygon = [projection.project(point[0], point[1]) for point in mesh.polygon]
@@ -158,15 +214,18 @@ def calculate_commercial_concentration(
         bounds = min(xs), min(ys), max(xs), max(ys)
         area_km2 = (bounds[2] - bounds[0]) * (bounds[3] - bounds[1]) / 1_000_000
         center = projection.project(mesh.center_longitude, mesh.center_latitude)
+        candidates = spatial_index.candidates(bounds)
         counts: dict[str, int | None] = {}
         for category in COMMERCIAL_CATEGORIES:
-            counts[category] = sum(_overlaps_bounds(poi, bounds) for poi in pois_by_category[category]) if category in data.available_categories else None
+            counts[category] = sum(
+                poi.category == category and _overlaps_bounds(poi, bounds) for poi in candidates
+            ) if category in data.available_categories else None
             setattr(mesh, count_fields[category], counts[category])
         if all(counts[name] is not None for name in COMMERCIAL_CATEGORIES):
             mesh.commercial_poi_total = sum(value for value in counts.values() if value is not None)
             mesh.commercial_poi_density = round(mesh.commercial_poi_total / area_km2, 6)
-        commercial_pois = [poi for poi in data.pois if poi.category in COMMERCIAL_CATEGORIES]
-        mesh.nearest_commercial_poi_distance_m = round(min((_distance_to_poi(center, poi) for poi in commercial_pois), default=math.inf), 2) if commercial_pois else None
+        nearest_distance = spatial_index.nearest_distance(center)
+        mesh.nearest_commercial_poi_distance_m = round(nearest_distance, 2) if nearest_distance is not None else None
         retail_available = all(name in data.available_categories for name in ("retail", "supermarket", "convenience_store"))
         food_available = all(name in data.available_categories for name in ("restaurant", "cafe"))
         values = {

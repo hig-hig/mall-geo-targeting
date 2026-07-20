@@ -1,0 +1,67 @@
+dataset_name: イオンモールむさし村山周辺 OpenStreetMap商業POI
+source: OpenStreetMap contributors (Overpass API)
+source_url: https://overpass-api.de/api/interpreter
+license: Open Database License (ODbL) 1.0
+commercial_use_allowed: true
+attribution_required: true
+retrieved_at: '2026-07-20'
+coverage_area: &id001
+- 139.2519309911
+- 35.6385926591
+- 139.5175690089
+- 35.8541873409
+query_bbox: *id001
+required_bbox:
+- 139.2629992418
+- 35.6475757708
+- 139.5065007582
+- 35.8452042292
+processing: nodeをPoint、閉じたwayをPolygon、開いたwayとrelationをbounds代表Pointへ変換し、shop、amenity、leisure、tourism、officeタグから単一のcommercial_categoryを付与。分類不能要素は除外した。OSMのタグ付与状況に依存するため、商業POIの完全な網羅性は保証しない。
+is_sample: false
+source_files:
+- data/raw/osm/source/aeon-mall-musashimurayama__osm-commercial-raw__20260720.json
+source_generator: Overpass API 0.7.62.11 87bfad18
+feature_counts:
+  input_elements: 14043
+  total: 14033
+category_counts:
+  retail: 4810
+  food: 4136
+  service: 3433
+  entertainment: 557
+  office: 1006
+detailed_category_counts:
+  cafe: 402
+  convenience_store: 1286
+  entertainment: 557
+  hotel: 91
+  office: 1006
+  restaurant: 3734
+  retail: 3053
+  service: 3433
+  supermarket: 471
+excluded_counts:
+  classification_unmatched: 10
+  duplicate_source_elements_merged: 0
+geometry_counts:
+  Point: 11601
+  Polygon: 2432
+processing_notices:
+  open_way_represented_as_point: 1
+  relation_represented_as_point: 24
+output_bbox:
+- 139.252372
+- 35.6383038
+- 139.5180656
+- 35.8549625
+crs: EPSG:4326
+attribution: © OpenStreetMap contributors
+query_conditions:
+  tags:
+  - shop
+  - amenity
+  - leisure
+  - tourism
+  - office
+  excluded: 駐車場、交通施設、分類対象外タグ。nameの有無は除外条件にしない。
+  note: 元JSONにクエリ本文は含まれないため、取得対象タグを記録。

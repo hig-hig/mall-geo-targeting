@@ -61,19 +61,13 @@ def run(project_root: Path, data_mode: str | None = None, accessibility_mode: st
     selected_commercial_mode = commercial_mode or str(analysis_config.get("commercial_mode", "sample"))
     if selected_commercial_mode == "sample":
         LOGGER.warning("sample商業モードは模擬指数を使用します")
-    if selected_commercial_mode == "file":
+    if selected_commercial_mode in ("osm", "file"):
         selected_source_names.append("commercial")
-    elif selected_commercial_mode == "osm":
-        selected_source_names.append("osm")
     if selected_commercial_mode in ("osm", "file"):
         commercial_config = load_yaml(project_root / "config" / "commercial.yaml")
         commercial_weights = load_yaml(project_root / "config" / "commercial_weights.yaml")
         projection = LocalProjection(target.latitude, target.longitude)
-        if selected_commercial_mode == "osm":
-            osm_config = load_yaml(project_root / "config" / "osm.yaml")
-            commercial_path = project_root / str(data_sources["osm"]["path"])
-        else:
-            commercial_path = project_root / str(data_sources["commercial"]["path"])
+        commercial_path = project_root / str(data_sources["commercial"]["path"])
         commercial_data = load_commercial_geojson(commercial_path, commercial_config, projection)
         calculate_commercial_concentration(meshes, commercial_data, projection, commercial_weights)
     elif selected_commercial_mode == "none":

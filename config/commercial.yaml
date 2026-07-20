@@ -1,17 +1,17 @@
 {
-  "path": "data/raw/commercial/sample_commercial_poi.geojson",
+  "path": "data/raw/commercial/processed/aeon-mall-musashimurayama__commercial-poi__20260720.geojson",
   "crs": "EPSG:4326",
-  "available_categories": ["retail", "supermarket", "convenience_store", "restaurant", "cafe", "entertainment", "service", "office", "hotel", "school", "childcare"],
+  "available_categories": ["retail", "supermarket", "convenience_store", "restaurant", "cafe", "entertainment", "service", "office", "hotel"],
   "categories": {
-    "retail": [{"key": "shop", "values": ["department_store", "mall", "clothes", "electronics", "books"]}],
-    "supermarket": [{"key": "shop", "values": ["supermarket"]}],
-    "convenience_store": [{"key": "shop", "values": ["convenience"]}],
-    "restaurant": [{"key": "amenity", "values": ["restaurant", "fast_food"]}],
-    "cafe": [{"key": "amenity", "values": ["cafe"]}],
-    "entertainment": [{"key": "amenity", "values": ["cinema", "theatre"]}, {"key": "leisure", "values": ["amusement_arcade"]}],
-    "service": [{"key": "amenity", "values": ["bank", "pharmacy", "clinic", "post_office"]}],
-    "office": [{"key": "office", "values": ["company", "government"]}],
-    "hotel": [{"key": "tourism", "values": ["hotel"]}],
+    "retail": [{"key": "commercial_category", "values": ["retail"]}],
+    "supermarket": [{"key": "commercial_category", "values": ["supermarket"]}],
+    "convenience_store": [{"key": "commercial_category", "values": ["convenience_store"]}],
+    "restaurant": [{"key": "commercial_category", "values": ["restaurant"]}],
+    "cafe": [{"key": "commercial_category", "values": ["cafe"]}],
+    "entertainment": [{"key": "commercial_category", "values": ["entertainment"]}],
+    "service": [{"key": "commercial_category", "values": ["service"]}],
+    "office": [{"key": "commercial_category", "values": ["office"]}],
+    "hotel": [{"key": "commercial_category", "values": ["hotel"]}],
     "school": [{"key": "amenity", "values": ["school"]}],
     "childcare": [{"key": "amenity", "values": ["kindergarten", "childcare"]}]
   }

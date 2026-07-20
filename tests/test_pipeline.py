@@ -72,17 +72,21 @@ def test_estat_osm_accessibility_and_commercial_poi_run_together() -> None:
     root = Path(__file__).parents[1]
     weights = load_yaml(root / "config" / "commercial_weights.yaml")["weights"]
     total_weight = sum(float(value) for value in weights.values())
-    expected_coverage = round(
-        (total_weight - float(weights["commercial_proximity"])) / total_weight, 6
-    )
     result = run(root, data_mode="estat", accessibility_mode="osm", commercial_mode="osm")
     assert result["commercial_mode"] == "osm"
     assert result["commercial_coverage_count"] == result["mesh_count"]
-    assert result["mean_commercial_coverage"] == pytest.approx(expected_coverage)
     geojson = json.loads(result["outputs"]["geojson"].read_text(encoding="utf-8"))
-    assert all(feature["properties"]["commercial_poi_total"] == 0 for feature in geojson["features"])
+    expected_coverages = [
+        sum(float(weights[name]) for name in feature["properties"]["commercial_used_components"])
+        / total_weight
+        for feature in geojson["features"]
+    ]
+    assert result["mean_commercial_coverage"] == pytest.approx(
+        sum(expected_coverages) / len(expected_coverages)
+    )
+    assert any(feature["properties"]["commercial_poi_total"] for feature in geojson["features"])
     assert all(
-        "commercial_proximity" not in feature["properties"]["commercial_used_components"]
+        "commercial_proximity" in feature["properties"]["commercial_used_components"]
         for feature in geojson["features"]
     )
     properties = geojson["features"][0]["properties"]
