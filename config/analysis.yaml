@@ -8,11 +8,11 @@
   "commercial_mode": "sample",
   "population_path": "data/sample_population.csv",
   "estat": {
-    "path": "data/raw/estat/sample_estat_population.csv",
+    "path": "data/raw/estat/processed/aeon-mall-musashimurayama__estat-population-mesh__20201001.csv",
     "encoding": "utf-8-sig",
     "delimiter": ",",
     "survey_year": 2020,
-    "table_id": "SAMPLE-ESTAT-POPULATION",
+    "table_id": "T001102+T001175",
     "columns": {
       "standard_mesh_code": "地域メッシュコード",
       "total_population": "総人口",
@@ -23,7 +23,7 @@
     },
     "markers": {
       "missing": ["", "NA"],
-      "suppressed": ["X", "秘匿"],
+      "suppressed": ["*", "X", "秘匿"],
       "not_applicable": ["-", "対象外"]
     }
   },

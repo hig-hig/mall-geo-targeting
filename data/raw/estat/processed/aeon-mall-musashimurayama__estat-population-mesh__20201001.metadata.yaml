@@ -1,0 +1,30 @@
+{
+  "dataset_name": "令和2年国勢調査 250m地域メッシュ人口（一次メッシュ5339）",
+  "source": "政府統計の総合窓口 e-Stat 地図で見る統計（統計GIS）地域メッシュ統計",
+  "source_url": "https://www.e-stat.go.jp/gis/statmap-search?page=1&type=1&toukeiCode=00200521",
+  "license": "政府標準利用規約（第2.0版）",
+  "commercial_use_allowed": true,
+  "attribution_required": true,
+  "retrieved_at": "2026-07-20",
+  "coverage_area": [
+    139.0,
+    35.3333333333,
+    140.0,
+    36.0
+  ],
+  "processing": "cp932の日本語ヘッダーで必要列を特定し、10桁KEY_CODEのみを保持。人口、世帯数、0～14歳、15～64歳はT001102から抽出。65歳以上はT001175の65～69歳から95歳以上までの総数7階級を合計し、いずれかが*なら*、空欄なら空欄とした。年齢不詳の按分は行っていない。HTKSYORI=2の合算元と=1の合算先を含め、e-Stat掲載値と秘匿状態を変更していない。",
+  "is_sample": false,
+  "survey_year": 2020,
+  "mesh_level": 5,
+  "mesh_size_m": 250,
+  "primary_area_code": "5339",
+  "source_files": [
+    "tblT001102Q5339.txt",
+    "tblT001175Q5339.txt"
+  ],
+  "source_tables": [
+    "T001102",
+    "T001175"
+  ],
+  "encoding": "cp932"
+}

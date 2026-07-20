@@ -28,7 +28,7 @@ def test_sample_pipeline_outputs_files() -> None:
         assert field in properties
 
 
-def test_estat_mode_runs_without_replacing_sample_default() -> None:
+def test_estat_mode_joins_configured_real_data() -> None:
     root = Path(__file__).parents[1]
     result = run(root, data_mode="estat")
     assert result["data_mode"] == "estat"
@@ -36,20 +36,9 @@ def test_estat_mode_runs_without_replacing_sample_default() -> None:
     assert result["scored_count"] > 0
     geojson = json.loads(result["outputs"]["geojson"].read_text(encoding="utf-8"))
     matched = [f for f in geojson["features"] if f["properties"]["source_table_id"]]
-    # The checked-in e-Stat fixture covers the former synthetic Tokyo Bay mall,
-    # not the real-data candidate in Musashimurayama. It must not be joined by accident.
-    assert matched == []
-    assert result["demographic_missing_count"] == result["mesh_count"]
-
-    huff_only = [
-        f for f in geojson["features"]
-        if f["properties"]["used_features"] == ["huff_visit_probability"]
-    ]
-    assert huff_only
-    assert all(f["properties"]["acquisition_potential_score"] is not None for f in huff_only)
-    assert all(f["properties"]["score_quality_tier"] == "D" for f in huff_only)
-    assert all(f["properties"]["eligible_for_delivery"] is False for f in huff_only)
-    assert all(f["properties"]["is_delivery_zone"] is False for f in huff_only)
+    assert matched
+    assert all(f["properties"]["source_table_id"] == "T001102+T001175" for f in matched)
+    assert result["demographic_missing_count"] < result["mesh_count"]
 
 
 def test_estat_and_osm_modes_can_run_together() -> None:

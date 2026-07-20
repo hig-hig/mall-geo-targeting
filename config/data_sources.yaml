@@ -13,8 +13,8 @@
       "license_record_name": "モール基本情報設定"
     },
     "estat": {
-      "path": "data/raw/estat/sample_estat_population.csv",
-      "metadata_path": "data/raw/estat/sample_estat_population.metadata.yaml",
+      "path": "data/raw/estat/processed/aeon-mall-musashimurayama__estat-population-mesh__20201001.csv",
+      "metadata_path": "data/raw/estat/processed/aeon-mall-musashimurayama__estat-population-mesh__20201001.metadata.yaml",
       "format": "estat_csv",
       "license_record_name": "e-Stat 地域メッシュ統計（国勢調査人口等基本集計）"
     },
