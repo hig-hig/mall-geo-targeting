@@ -8,6 +8,8 @@ from typing import Any
 
 from .models import Mall
 
+NEUTRAL_ATTRACTIVENESS_METHOD = "neutral_non_size_multiplier"
+
 
 class ConfigurationError(ValueError):
     """Raised when a configuration is invalid."""
@@ -28,28 +30,21 @@ def load_yaml(path: Path) -> dict[str, Any]:
     return value
 
 
-def gross_leasable_area_ratio(floor_area_m2: float, target_floor_area_m2: float) -> float:
-    """Calculate provisional attractiveness from gross leasable areas."""
-    if floor_area_m2 <= 0 or target_floor_area_m2 <= 0:
-        raise ConfigurationError("総賃貸面積は正数である必要があります")
-    return floor_area_m2 / target_floor_area_m2
-
-
-def mall_from_dict(value: dict[str, Any], target_floor_area_m2: float | None = None) -> Mall:
+def mall_from_dict(value: dict[str, Any]) -> Mall:
     try:
         floor_area_m2 = float(value["floor_area_m2"])
-        attractiveness = float(value.get("attractiveness", 1.0))
-        if value.get("attractiveness_method") == "gross_leasable_area_ratio":
-            if target_floor_area_m2 is None:
-                raise ConfigurationError("面積比の計算には対象モールの総賃貸面積が必要です")
-            attractiveness = gross_leasable_area_ratio(floor_area_m2, target_floor_area_m2)
+        method = str(value["attractiveness_method"])
+        if method != NEUTRAL_ATTRACTIVENESS_METHOD:
+            raise ConfigurationError(f"未対応のattractiveness_methodです: {method}")
+        if float(value["attractiveness"]) != 1.0:
+            raise ConfigurationError("neutral_non_size_multiplierのattractivenessは1.0が必要です")
         mall = Mall(
             id=str(value["id"]),
             name=str(value["name"]),
             latitude=float(value["latitude"]),
             longitude=float(value["longitude"]),
             floor_area_m2=floor_area_m2,
-            attractiveness=attractiveness,
+            attractiveness=1.0,
             app_value=str(value.get("app_value", "coupon")),
         )
     except (KeyError, TypeError, ValueError) as exc:

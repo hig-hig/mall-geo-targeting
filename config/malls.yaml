@@ -6,6 +6,7 @@
     "longitude": 139.7560,
     "floor_area_m2": 85000,
     "attractiveness": 1.0,
+    "attractiveness_method": "neutral_non_size_multiplier",
     "app_value": "coupon"
   },
   "competitor_malls": [
@@ -15,7 +16,8 @@
       "latitude": 35.6700,
       "longitude": 139.7520,
       "floor_area_m2": 62000,
-      "attractiveness": 0.9
+      "attractiveness": 1.0,
+      "attractiveness_method": "neutral_non_size_multiplier"
     },
     {
       "id": "competitor_east",
@@ -23,7 +25,8 @@
       "latitude": 35.6550,
       "longitude": 139.7790,
       "floor_area_m2": 71000,
-      "attractiveness": 1.1
+      "attractiveness": 1.0,
+      "attractiveness_method": "neutral_non_size_multiplier"
     }
   ]
 }

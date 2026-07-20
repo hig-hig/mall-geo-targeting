@@ -37,6 +37,44 @@ def test_huff_probability_is_normalized() -> None:
     assert mesh.huff_probability == pytest.approx(0.5, rel=0.02)
 
 
+def test_huff_uses_gross_leasable_area_linearly() -> None:
+    mesh = Mesh("x", 0, 0, 35, 139.001, [])
+    small = Mall("small", "small", 35, 139.0, 10_000, 1.0)
+    large = Mall("large", "large", 35, 139.002, 20_000, 1.0)
+    calculate_huff([mesh], small, [large], exponent=2)
+    assert mesh.huff_probability == pytest.approx(1 / 3, rel=0.02)
+
+
+def test_huff_applies_same_rule_when_target_and_competitor_are_swapped() -> None:
+    point = (35, 139.001)
+    small = Mall("small", "small", 35, 139.0, 10_000, 1.0)
+    large = Mall("large", "large", 35, 139.002, 20_000, 1.0)
+    small_target = Mesh("small-target", 0, 0, *point, [])
+    large_target = Mesh("large-target", 0, 0, *point, [])
+    calculate_huff([small_target], small, [large], exponent=2)
+    calculate_huff([large_target], large, [small], exponent=2)
+    assert small_target.huff_probability + large_target.huff_probability == pytest.approx(1.0)
+
+
+def test_huff_is_invariant_to_common_attractiveness_multiplier() -> None:
+    point = (35, 139.001)
+    baseline = Mesh("baseline", 0, 0, *point, [])
+    scaled = Mesh("scaled", 0, 0, *point, [])
+    calculate_huff(
+        [baseline],
+        Mall("a", "a", 35, 139.0, 10_000, 1.0),
+        [Mall("b", "b", 35, 139.002, 20_000, 1.0)],
+        exponent=2,
+    )
+    calculate_huff(
+        [scaled],
+        Mall("a", "a", 35, 139.0, 10_000, 3.0),
+        [Mall("b", "b", 35, 139.002, 20_000, 3.0)],
+        exponent=2,
+    )
+    assert scaled.huff_probability == pytest.approx(baseline.huff_probability)
+
+
 def test_renormalize_scores_available_features_and_zero_is_observed() -> None:
     zero = Mesh("zero", 0, 0, 35, 139, [], population=0, young_adult_ratio=0.0, smartphone_affinity=0.0, huff_probability=0.0)
     missing = Mesh("missing", 0, 0, 35, 139, [], population=None, young_adult_ratio=0.2, smartphone_affinity=0.8, huff_probability=0.5)

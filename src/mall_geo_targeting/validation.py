@@ -15,7 +15,7 @@ from typing import Any, Iterable
 
 from .analysis import generate_meshes, join_estat_statistics
 from .commercial import load_commercial_geojson
-from .config import gross_leasable_area_ratio, load_yaml, mall_from_dict
+from .config import NEUTRAL_ATTRACTIVENESS_METHOD, load_yaml, mall_from_dict
 from .estat import load_estat_csv
 from .osm import LocalProjection, load_osm_geojson
 
@@ -208,15 +208,46 @@ def _bbox_within_margin(
     return _bbox_contains(expanded, value)
 
 
+def _validate_attractiveness_metadata(
+    metadata: dict[str, Any], issues: list[ValidationIssue]
+) -> None:
+    expected = {
+        "size_measure": "gross_leasable_area_m2",
+        "attractiveness_method": NEUTRAL_ATTRACTIVENESS_METHOD,
+        "attractiveness_formula": "1.0",
+        "attractiveness_method_version": "1.0",
+    }
+    for field, value in expected.items():
+        if metadata.get(field) != value:
+            _issue(issues, "ERROR", "malls", f"metadataの{field}は{value!r}が必要です")
+    if any("attractiveness" in str(value) for value in metadata.get("provisional_fields", [])):
+        _issue(issues, "ERROR", "malls", "正式仕様のattractivenessをprovisional_fieldsへ指定できません")
+    for field in (
+        "huff_size_term",
+        "attractiveness_rationale",
+        "double_counting_prevention",
+        "future_calibration",
+    ):
+        if not str(metadata.get(field, "")).strip():
+            _issue(issues, "ERROR", "malls", f"metadataに{field}の説明が必要です")
+
+
 def _validate_malls(path: Path, issues: list[ValidationIssue]) -> tuple[float, float] | None:
     try:
         config = load_yaml(path)
         target_value = config["target_mall"]
-        target = mall_from_dict(target_value)
         competitor_values = config.get("competitor_malls", [])
-        competitors = [
-            mall_from_dict(value, target_floor_area_m2=target.floor_area_m2) for value in competitor_values
-        ]
+        all_values = [target_value, *competitor_values]
+        methods = {str(value.get("attractiveness_method", "")) for value in all_values}
+        if methods != {NEUTRAL_ATTRACTIVENESS_METHOD}:
+            _issue(
+                issues,
+                "ERROR",
+                "malls",
+                "全登録モールに共通のneutral_non_size_multiplierが必要です",
+            )
+        target = mall_from_dict(target_value)
+        competitors = [mall_from_dict(value) for value in competitor_values]
         malls = [target, *competitors]
     except (OSError, KeyError, TypeError, ValueError) as exc:
         _issue(issues, "ERROR", "malls", f"モール設定が不正です: {exc}")
@@ -232,7 +263,10 @@ def _validate_malls(path: Path, issues: list[ValidationIssue]) -> tuple[float, f
         _issue(issues, "ERROR", "malls", "対象モールにapp_valueがありません")
     if target_value.get("coordinate_status") != "verified":
         _issue(issues, "WARNING", "malls", "対象モールの座標は未検証です")
-    required = {"id", "name", "latitude", "longitude", "floor_area_m2", "attractiveness", "coordinate_status"}
+    required = {
+        "id", "name", "latitude", "longitude", "floor_area_m2", "attractiveness",
+        "attractiveness_method", "coordinate_status",
+    }
     for value, mall in zip(competitor_values, competitors):
         missing = sorted(required - value.keys())
         if missing:
@@ -242,11 +276,6 @@ def _validate_malls(path: Path, issues: list[ValidationIssue]) -> tuple[float, f
         distance_m = _haversine_m(target.latitude, target.longitude, mall.latitude, mall.longitude)
         if distance_m < 50:
             _issue(issues, "ERROR", "malls", f"{mall.id}の座標が対象モールと異常に近接しています: {distance_m:.1f}m")
-        if value.get("attractiveness_method") == "gross_leasable_area_ratio":
-            expected = gross_leasable_area_ratio(mall.floor_area_m2, target.floor_area_m2)
-            configured = float(value["attractiveness"])
-            if not math.isclose(configured, expected, abs_tol=0.00005):
-                _issue(issues, "ERROR", "malls", f"{mall.id}のattractivenessが総賃貸面積比と一致しません")
     return target.latitude, target.longitude
 
 
@@ -382,6 +411,8 @@ def validate_inputs(project_root: Path, require_real: bool = False) -> Validatio
             continue
         metadata_by_source[source_name] = metadata
         _validate_metadata(source_name, metadata, require_real, issues)
+        if source_name == "malls":
+            _validate_attractiveness_metadata(metadata, issues)
         if str(source_config.get("license_record_name")) not in license_names:
             _issue(issues, "ERROR", source_name, "config/licenses.yamlに対応するライセンス記録がありません")
         if metadata.get("is_sample") is False and not REAL_NAME_PATTERN.match(path.name):

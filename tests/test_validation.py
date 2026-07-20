@@ -4,10 +4,11 @@ from pathlib import Path
 import yaml
 
 from mall_geo_targeting.pipeline import run
-from mall_geo_targeting.config import gross_leasable_area_ratio, load_yaml, mall_from_dict
+from mall_geo_targeting.config import load_yaml, mall_from_dict
 from mall_geo_targeting.validation import (
     _bbox_contains,
     _bbox_within_margin,
+    _validate_attractiveness_metadata,
     _validate_malls,
     validate_competitor_candidates,
     validate_inputs,
@@ -19,12 +20,12 @@ def test_mixed_real_and_sample_inputs_validate_with_explicit_warnings() -> None:
     report = validate_inputs(root)
     assert report.errors == []
     warned_sources = {issue.source for issue in report.warnings}
-    assert {"malls"} <= warned_sources
+    assert "malls" not in warned_sources
     assert "commercial" not in warned_sources
     assert "osm" not in warned_sources
     assert "estat" not in warned_sources
     assert sum("サンプルデータ" in issue.message for issue in report.warnings) == 0
-    assert any(issue.source == "malls" and "暫定値" in issue.message for issue in report.warnings)
+    assert not any(issue.source == "malls" and "暫定値" in issue.message for issue in report.warnings)
 
 
 def test_require_real_accepts_configured_real_sources() -> None:
@@ -32,7 +33,7 @@ def test_require_real_accepts_configured_real_sources() -> None:
     report = validate_inputs(root, require_real=True)
     assert report.errors == []
     assert not any(issue.source == "malls" and "サンプルデータ" in issue.message for issue in report.errors)
-    assert any(issue.source == "malls" and "暫定値" in issue.message for issue in report.warnings)
+    assert not any(issue.source == "malls" and "暫定値" in issue.message for issue in report.warnings)
 
 
 def test_acquisition_bbox_can_prove_sparse_geojson_coverage() -> None:
@@ -102,16 +103,43 @@ def test_verified_target_and_competitors_are_accepted() -> None:
     assert issues == []
 
 
-def test_competitor_attractiveness_is_calculated_from_floor_area() -> None:
+def test_all_registered_malls_use_neutral_non_size_multiplier() -> None:
     root = Path(__file__).parents[1]
     config = load_yaml(root / "data/raw/malls/aeon-mall-musashimurayama__mall-profile__20260718.yaml")
     target = mall_from_dict(config["target_mall"])
-    competitors = [
-        mall_from_dict(value, target_floor_area_m2=target.floor_area_m2)
-        for value in config["competitor_malls"]
+    competitors = [mall_from_dict(value) for value in config["competitor_malls"]]
+    assert {value["attractiveness_method"] for value in [config["target_mall"], *config["competitor_malls"]]} == {
+        "neutral_non_size_multiplier"
+    }
+    assert [mall.attractiveness for mall in [target, *competitors]] == [1.0, 1.0, 1.0]
+    assert [mall.floor_area_m2 * mall.attractiveness for mall in [target, *competitors]] == [
+        78000,
+        63000,
+        64000,
     ]
-    assert competitors[0].attractiveness == gross_leasable_area_ratio(63000, 78000)
-    assert competitors[1].attractiveness == gross_leasable_area_ratio(64000, 78000)
+
+
+def test_legacy_gross_leasable_area_ratio_is_rejected(tmp_path: Path) -> None:
+    root = Path(__file__).parents[1]
+    config = load_yaml(root / "data/raw/malls/aeon-mall-musashimurayama__mall-profile__20260718.yaml")
+    config["competitor_malls"][0]["attractiveness_method"] = "gross_leasable_area_ratio"
+    path = tmp_path / "malls.yaml"
+    path.write_text(yaml.safe_dump(config, allow_unicode=True), encoding="utf-8")
+    issues = []
+    _validate_malls(path, issues)
+    assert any("neutral_non_size_multiplier" in issue.message for issue in issues)
+
+
+def test_attractiveness_metadata_records_formal_method() -> None:
+    root = Path(__file__).parents[1]
+    metadata = load_yaml(
+        root / "data/raw/malls/aeon-mall-musashimurayama__mall-profile__20260718.metadata.yaml"
+    )
+    issues = []
+    _validate_attractiveness_metadata(metadata, issues)
+    assert issues == []
+    assert metadata["attractiveness_formula"] == "1.0"
+    assert metadata["attractiveness_method_version"] == "1.0"
 
 
 def test_duplicate_id_and_same_coordinate_are_rejected(tmp_path: Path) -> None:

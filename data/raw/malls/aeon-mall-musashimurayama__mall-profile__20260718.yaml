@@ -6,6 +6,7 @@
     "longitude": 139.384750,
     "floor_area_m2": 78000,
     "attractiveness": 1.0,
+    "attractiveness_method": "neutral_non_size_multiplier",
     "app_value": "coupon",
     "coordinate_status": "verified",
     "coordinate_method": "OpenStreetMap building polygon representative point cross-checked against official-page-linked Google Maps facility point"
@@ -17,8 +18,8 @@
       "latitude": 35.712380,
       "longitude": 139.417400,
       "floor_area_m2": 63000,
-      "attractiveness": 0.8077,
-      "attractiveness_method": "gross_leasable_area_ratio",
+      "attractiveness": 1.0,
+      "attractiveness_method": "neutral_non_size_multiplier",
       "coordinate_status": "verified"
     },
     {
@@ -27,8 +28,8 @@
       "latitude": 35.734800,
       "longitude": 139.275240,
       "floor_area_m2": 64000,
-      "attractiveness": 0.8205,
-      "attractiveness_method": "gross_leasable_area_ratio",
+      "attractiveness": 1.0,
+      "attractiveness_method": "neutral_non_size_multiplier",
       "coordinate_status": "verified"
     }
   ],
