@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from .analysis import assign_delivery_zones, calculate_huff, calculate_potential, generate_meshes, join_estat_statistics, join_population, resolve_required_feature_groups
+from .analysis import assign_delivery_zones, calculate_huff, calculate_potential, calculate_transport_choice_indices, generate_meshes, join_estat_statistics, join_population, resolve_required_feature_groups
 from .config import load_yaml, mall_from_dict
 from .commercial import calculate_commercial_concentration, load_commercial_geojson
 from .estat import load_estat_csv
@@ -30,6 +30,7 @@ def run(project_root: Path, data_mode: str | None = None, accessibility_mode: st
     malls_config = load_yaml(project_root / str(data_sources["malls"]["path"]))
     analysis_config = load_yaml(project_root / "config" / "analysis.yaml")
     feature_config = load_yaml(project_root / "config" / "feature_weights.yaml")
+    scenario_config = load_yaml(project_root / "config" / "scenarios.yaml")
     target = mall_from_dict(malls_config["target_mall"])
     competitors = [mall_from_dict(value) for value in malls_config.get("competitor_malls", [])]
     analysis_radius_m = int(malls_config.get("analysis", {}).get("radius_m", analysis_config["radius_m"]))
@@ -82,7 +83,14 @@ def run(project_root: Path, data_mode: str | None = None, accessibility_mode: st
     elif selected_commercial_mode != "sample":
         raise ValueError(f"未対応のcommercial_modeです: {selected_commercial_mode!r} (sample、osm、file、none)")
     warn_for_sample_sources(project_root, dict.fromkeys(selected_source_names))
-    calculate_huff(meshes, target, competitors, float(analysis_config["huff_distance_exponent"]))
+    existing_huff_scenario = scenario_config["facility_choice"]["existing_huff"]
+    calculate_huff(
+        meshes,
+        target,
+        competitors,
+        float(analysis_config["huff_distance_exponent"]),
+        float(existing_huff_scenario["minimum_distance_m"]),
+    )
     presets = feature_config.get("presets", {})
     if target.app_value not in presets:
         raise ValueError(f"app_valueに対応する重みプリセットがありません: {target.app_value}")
@@ -101,6 +109,8 @@ def run(project_root: Path, data_mode: str | None = None, accessibility_mode: st
         required_feature_groups=required_groups,
     )
     threshold = assign_delivery_zones(meshes, float(analysis_config["high_score_quantile"]))
+    transport_choice_config = scenario_config["transport_choice"]
+    calculate_transport_choice_indices(meshes, target, competitors, transport_choice_config)
     retrieved_at = {
         "estat": _retrieved_at(project_root, data_sources["estat"])
         if selected_mode == "estat"
@@ -127,6 +137,9 @@ def run(project_root: Path, data_mode: str | None = None, accessibility_mode: st
             "population_survey_year": analysis_config.get("estat", {}).get("survey_year"),
             "delivery_quantile": float(analysis_config["high_score_quantile"]),
             "score_weights": presets[target.app_value],
+            "scenario_metadata": scenario_config["scenario_metadata"],
+            "transport_choice": transport_choice_config,
+            "transport_mode_shares": scenario_config["transport_mode_shares"],
             "retrieved_at": retrieved_at,
         },
     )

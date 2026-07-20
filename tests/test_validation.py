@@ -11,6 +11,7 @@ from mall_geo_targeting.validation import (
     _validate_attractiveness_metadata,
     _validate_malls,
     validate_competitor_candidates,
+    validate_scenarios,
     validate_inputs,
 )
 
@@ -67,6 +68,36 @@ def test_competitor_candidate_ledger_is_valid() -> None:
         root / "data/raw/malls/aeon-mall-musashimurayama__mall-profile__20260718.yaml",
     )
     assert issues == []
+
+
+def test_planner_scenario_is_explicitly_uncalibrated_and_display_only() -> None:
+    root = Path(__file__).parents[1]
+    scenario = load_yaml(root / "config/scenarios.yaml")
+    assert validate_scenarios(root / "config/scenarios.yaml") == []
+    assert scenario["scenario_metadata"]["calibration_status"] == "uncalibrated_scenario"
+    assert scenario["transport_choice"]["score_integration"] == "display_only"
+    assert scenario["facility_choice"]["existing_huff"]["minimum_distance_m"] == 1.0
+    assert scenario["transport_mode_shares"]["enabled"] is False
+
+
+def test_validator_rejects_transport_scenario_score_integration(tmp_path: Path) -> None:
+    root = Path(__file__).parents[1]
+    scenario = load_yaml(root / "config/scenarios.yaml")
+    scenario["transport_choice"]["score_integration"] = "existing"
+    path = tmp_path / "scenarios.yaml"
+    path.write_text(yaml.safe_dump(scenario, allow_unicode=True), encoding="utf-8")
+    issues = validate_scenarios(path)
+    assert any("display_only" in issue.message for issue in issues)
+
+
+def test_validator_rejects_nonpositive_huff_minimum_distance(tmp_path: Path) -> None:
+    root = Path(__file__).parents[1]
+    scenario = load_yaml(root / "config/scenarios.yaml")
+    scenario["facility_choice"]["existing_huff"]["minimum_distance_m"] = 0
+    path = tmp_path / "scenarios.yaml"
+    path.write_text(yaml.safe_dump(scenario, allow_unicode=True), encoding="utf-8")
+    issues = validate_scenarios(path)
+    assert any("既存Huffのminimum_distance_mは正数" in issue.message for issue in issues)
 
 
 def test_unverified_candidate_cannot_be_registered(tmp_path: Path) -> None:

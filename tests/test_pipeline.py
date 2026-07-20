@@ -27,6 +27,12 @@ def test_sample_pipeline_outputs_files() -> None:
         "required_groups_missing",
         "required_feature_gate_passed",
         "eligible_for_delivery",
+        "car_choice_index",
+        "walk_choice_index",
+        "bike_choice_index",
+        "car_availability",
+        "walk_availability",
+        "bike_availability",
     ):
         assert field in properties
 

@@ -105,6 +105,12 @@ class Mesh:
     # It is never used by the Step 3 score.
     smartphone_affinity: float | None = None
     huff_probability: float | None = None
+    car_choice_index: float | None = None
+    walk_choice_index: float | None = None
+    bike_choice_index: float | None = None
+    car_availability: float | None = None
+    walk_availability: float | None = None
+    bike_availability: float | None = None
     acquisition_potential_score: float | None = None
     used_features: list[str] = field(default_factory=list)
     missing_features: list[str] = field(default_factory=list)

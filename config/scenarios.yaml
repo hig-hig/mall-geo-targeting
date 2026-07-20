@@ -1,0 +1,76 @@
+schema_version: 1
+
+scenario_metadata:
+  scenario_id: default-planner-scenario
+  label: 標準シナリオ
+  description: 実績校正前の初期分析シナリオ
+  calibration_status: uncalibrated_scenario
+  editable_by: planner
+  score_integration_status: partial
+  created_reason: 初期試作用の客観的に妥当な暫定値
+  last_updated_at: "2026-07-21"
+
+transport_choice:
+  calibration_status: uncalibrated_scenario
+  score_integration: display_only
+  method: straight_line_distance_with_mode_availability
+  method_version: "1.0"
+  modes:
+    car:
+      enabled: true
+      label: 車・到達条件付き選択指数
+      beta: 2.0
+      minimum_distance_m: 1.0
+      availability:
+        type: no_hard_limit
+        full_availability_until_m: null
+        zero_availability_from_m: null
+    walk:
+      enabled: true
+      label: 徒歩・到達条件付き選択指数
+      beta: 2.5
+      minimum_distance_m: 1.0
+      availability:
+        type: linear_decay
+        full_availability_until_m: 1000
+        zero_availability_from_m: 4000
+    bike:
+      enabled: true
+      label: 自転車・到達条件付き選択指数
+      beta: 2.2
+      minimum_distance_m: 1.0
+      availability:
+        type: linear_decay
+        full_availability_until_m: 3000
+        zero_availability_from_m: 10000
+
+transport_mode_shares:
+  calibration_status: uncalibrated_scenario
+  enabled: false
+  integration_status: not_implemented
+  note: 地域別交通手段割合は別概念として将来実装する
+
+facility_choice:
+  existing_huff:
+    beta_source: config/analysis.yaml
+    minimum_distance_m: 1.0
+    competitors_source: config/data_sources.yaml の malls.path
+    attractiveness_source: 登録モールプロファイル
+    facility_size_source: 登録モールプロファイル
+    facility_size_handling: floor_area_m2 × attractiveness
+    score_integration: existing
+    calibration_status: uncalibrated_scenario
+
+advertising_score:
+  weights_source: config/feature_weights.yaml
+  delivery_quantile_source: config/analysis.yaml
+  required_data_conditions_source: config/feature_weights.yaml
+  quality_gate_source: config/feature_weights.yaml
+  editable_in_future_ui: true
+  calibration_status: uncalibrated_scenario
+
+map_display:
+  calibration_status: uncalibrated_scenario
+  legend_method: visible_mesh_quintiles
+  displayed_scenario: default-planner-scenario
+  editable_in_future_ui: true

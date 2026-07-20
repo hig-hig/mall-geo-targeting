@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from mall_geo_targeting.analysis import assign_delivery_zones, calculate_huff, calculate_potential, generate_meshes, join_population, resolve_required_feature_groups, score_quality_tier
+from mall_geo_targeting.analysis import assign_delivery_zones, calculate_huff, calculate_potential, calculate_transport_choice_indices, generate_meshes, join_population, mode_availability, resolve_required_feature_groups, score_quality_tier
 from mall_geo_targeting.models import Mall, Mesh
 
 
@@ -113,6 +113,58 @@ def test_four_mall_huff_probabilities_sum_to_one() -> None:
         calculate_huff([mesh], target, [mall for mall in malls if mall is not target], exponent=2)
         probabilities.append(mesh.huff_probability)
     assert sum(value for value in probabilities if value is not None) == pytest.approx(1.0)
+
+
+def _transport_config() -> dict[str, object]:
+    return {
+        "modes": {
+            "car": {"enabled": True, "beta": 2.0, "minimum_distance_m": 1.0, "availability": {"type": "no_hard_limit"}},
+            "walk": {"enabled": True, "beta": 2.5, "minimum_distance_m": 1.0, "availability": {"type": "linear_decay", "full_availability_until_m": 1000, "zero_availability_from_m": 4000}},
+            "bike": {"enabled": True, "beta": 2.2, "minimum_distance_m": 1.0, "availability": {"type": "linear_decay", "full_availability_until_m": 3000, "zero_availability_from_m": 10000}},
+        }
+    }
+
+
+def test_mode_availability_boundaries_are_explicit_scenarios() -> None:
+    linear = {"type": "linear_decay", "full_availability_until_m": 1000, "zero_availability_from_m": 4000}
+    assert mode_availability(500, linear) == 1.0
+    assert mode_availability(2500, linear) == pytest.approx(0.5)
+    assert mode_availability(4000, linear) == 0.0
+    assert mode_availability(100_000, {"type": "no_hard_limit"}) == 1.0
+
+
+def test_transport_choice_indices_are_display_only_and_do_not_change_existing_results() -> None:
+    target = Mall("target", "target", 35.0, 139.0, 78_000, 1.0)
+    competitors = [Mall("other", "other", 35.0, 139.02, 63_000, 1.0)]
+    mesh = Mesh("mesh", 0, 0, 35.0, 139.005, [], population=100, young_adult_ratio=0.3, household_count=50, accessibility_index=0.7, commercial_concentration_index=0.8)
+    calculate_huff([mesh], target, competitors, exponent=2.0)
+    calculate_potential([mesh])
+    before = (mesh.huff_probability, mesh.acquisition_potential_score, mesh.eligible_for_delivery)
+    calculate_transport_choice_indices([mesh], target, competitors, _transport_config())
+    assert (mesh.huff_probability, mesh.acquisition_potential_score, mesh.eligible_for_delivery) == before
+    assert all(0 <= value <= 1 for value in (mesh.car_choice_index, mesh.walk_choice_index, mesh.bike_choice_index) if value is not None)
+    assert not {"car_choice_index", "walk_choice_index", "bike_choice_index"} & set(mesh.score_contributions)
+
+
+def test_transport_choice_is_independent_of_competitor_order() -> None:
+    target = Mall("target", "target", 35.0, 139.0, 78_000, 1.0)
+    competitors = [Mall("a", "a", 35.0, 139.02, 63_000, 1.0), Mall("b", "b", 35.02, 139.0, 64_000, 1.0)]
+    first = Mesh("first", 0, 0, 35.005, 139.005, [])
+    second = Mesh("second", 0, 0, 35.005, 139.005, [])
+    calculate_transport_choice_indices([first], target, competitors, _transport_config())
+    calculate_transport_choice_indices([second], target, list(reversed(competitors)), _transport_config())
+    assert (first.car_choice_index, first.walk_choice_index, first.bike_choice_index) == pytest.approx((second.car_choice_index, second.walk_choice_index, second.bike_choice_index))
+
+
+def test_transport_choice_is_missing_when_no_mall_is_available() -> None:
+    target = Mall("target", "target", 35.0, 139.0, 78_000, 1.0)
+    mesh = Mesh("far", 0, 0, 36.0, 140.0, [])
+    calculate_transport_choice_indices([mesh], target, [], _transport_config())
+    assert mesh.car_choice_index == 1.0
+    assert mesh.walk_choice_index is None
+    assert mesh.bike_choice_index is None
+    assert mesh.walk_availability == 0.0
+    assert mesh.bike_availability == 0.0
 
 
 def test_renormalize_scores_available_features_and_zero_is_observed() -> None:

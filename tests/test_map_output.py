@@ -38,6 +38,12 @@ def _mesh(identifier: str, *, eligible: bool, zone: bool) -> Mesh:
     mesh.acquisition_potential_score = 42.5 if eligible else None
     mesh.population = 125 if eligible else None
     mesh.huff_probability = 0.625 if eligible else None
+    mesh.car_choice_index = 0.6 if eligible else None
+    mesh.walk_choice_index = 0.5 if eligible else None
+    mesh.bike_choice_index = 0.55 if eligible else None
+    mesh.car_availability = 1.0 if eligible else None
+    mesh.walk_availability = 0.75 if eligible else None
+    mesh.bike_availability = 0.9 if eligible else None
     mesh.accessibility_index = 0.7 if eligible else None
     mesh.commercial_concentration_index = 0.4 if eligible else None
     mesh.score_coverage = 1.0 if eligible else None
@@ -72,6 +78,9 @@ def test_map_contains_metrics_controls_malls_and_sources() -> None:
         "総合スコア",
         "人口",
         "施設相対選択指数",
+        "車・到達条件付き選択指数",
+        "徒歩・到達条件付き選択指数",
+        "自転車・到達条件付き選択指数",
         "アクセシビリティ",
         "商業集積",
         "配信適格判定",
@@ -222,6 +231,24 @@ def test_map_analysis_conditions_use_payload_context() -> None:
     assert "c.score_weights||{}" in html
     assert "重みは統計的な正解値ではなく、現在の分析シナリオ" in html
     assert "実来館確率ではありません" in html
+
+
+def test_transport_scenario_context_is_displayed_without_score_integration() -> None:
+    target = _mall("target", "対象モール", 139.4, target=True)
+    html = build_map_html(
+        [_mesh("M_1", eligible=True, zone=True)],
+        target,
+        [],
+        {
+            "threshold": 42.5,
+            "scenario_metadata": {"label": "標準シナリオ", "calibration_status": "uncalibrated_scenario"},
+            "transport_choice": {"method": "straight_line_distance_with_mode_availability", "score_integration": "display_only"},
+        },
+    )
+    payload = _payload(html)
+    assert payload["context"]["transport_choice"]["score_integration"] == "display_only"
+    assert "未校正・表示専用" in html
+    assert "交通手段割合は未実装" in html
 
 
 def test_map_html_generation_is_deterministic() -> None:

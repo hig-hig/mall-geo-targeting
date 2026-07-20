@@ -145,17 +145,107 @@ def join_estat_statistics(meshes: list[Mesh], statistics: dict[str, EstatMeshSta
         mesh.missing_fields = [name for name in ("population", "household_count", "age_0_14_population", "age_15_64_population", "age_65_plus_population") if getattr(mesh, name) is None]
 
 
-def calculate_huff(meshes: list[Mesh], target: Mall, competitors: list[Mall], exponent: float) -> None:
-    if exponent <= 0:
-        raise ValueError("Huffモデルの距離指数は正数である必要があります")
+def calculate_huff(
+    meshes: list[Mesh],
+    target: Mall,
+    competitors: list[Mall],
+    exponent: float,
+    minimum_distance_m: float = 1.0,
+) -> None:
+    if exponent <= 0 or minimum_distance_m <= 0:
+        raise ValueError("Huffモデルの距離指数と最低距離は正数である必要があります")
     malls = [target, *competitors]
     for mesh in meshes:
         utilities = []
         for mall in malls:
-            distance = max(haversine_m(mesh.center_latitude, mesh.center_longitude, mall.latitude, mall.longitude), 1.0)
+            distance = max(
+                haversine_m(
+                    mesh.center_latitude,
+                    mesh.center_longitude,
+                    mall.latitude,
+                    mall.longitude,
+                ),
+                minimum_distance_m,
+            )
             utilities.append((mall.floor_area_m2 * mall.attractiveness) / distance**exponent)
         denominator = sum(utilities)
         mesh.huff_probability = utilities[0] / denominator if denominator > 0 else None
+
+
+TRANSPORT_MODE_FIELDS = {
+    "car": ("car_choice_index", "car_availability"),
+    "walk": ("walk_choice_index", "walk_availability"),
+    "bike": ("bike_choice_index", "bike_availability"),
+}
+
+
+def mode_availability(distance_m: float, config: dict[str, object]) -> float:
+    """Return an explicit scenario availability in [0, 1], not an observed modal share."""
+    kind = str(config.get("type", ""))
+    if kind == "no_hard_limit":
+        return 1.0
+    if kind != "linear_decay":
+        raise ValueError(f"未対応のavailability.typeです: {kind}")
+    full = float(config["full_availability_until_m"])
+    zero = float(config["zero_availability_from_m"])
+    if not 0 <= full < zero:
+        raise ValueError("linear_decayは0 <= full_availability_until_m < zero_availability_from_mが必要です")
+    if distance_m <= full:
+        return 1.0
+    if distance_m >= zero:
+        return 0.0
+    return (zero - distance_m) / (zero - full)
+
+
+def calculate_transport_choice_indices(
+    meshes: list[Mesh],
+    target: Mall,
+    competitors: list[Mall],
+    config: dict[str, object],
+) -> None:
+    """Calculate display-only, uncalibrated straight-line transport scenarios."""
+    malls = [target, *competitors]
+    modes = config.get("modes")
+    if not isinstance(modes, dict):
+        raise ValueError("transport_choice.modesはマッピングで指定してください")
+    for mode, (index_field, availability_field) in TRANSPORT_MODE_FIELDS.items():
+        mode_config = modes.get(mode)
+        if not isinstance(mode_config, dict):
+            raise ValueError(f"transport_choice.modes.{mode}がありません")
+        if not mode_config.get("enabled"):
+            for mesh in meshes:
+                setattr(mesh, index_field, None)
+                setattr(mesh, availability_field, None)
+            continue
+        beta = float(mode_config["beta"])
+        minimum_distance_m = float(mode_config["minimum_distance_m"])
+        availability_config = mode_config.get("availability")
+        if beta <= 0 or minimum_distance_m <= 0:
+            raise ValueError(f"{mode}のbetaとminimum_distance_mは正数である必要があります")
+        if not isinstance(availability_config, dict):
+            raise ValueError(f"{mode}のavailabilityが不正です")
+        for mesh in meshes:
+            utilities: list[float] = []
+            target_availability = None
+            for mall_index, mall in enumerate(malls):
+                raw_distance = haversine_m(
+                    mesh.center_latitude,
+                    mesh.center_longitude,
+                    mall.latitude,
+                    mall.longitude,
+                )
+                availability = mode_availability(raw_distance, availability_config)
+                if mall_index == 0:
+                    target_availability = availability
+                distance = max(raw_distance, minimum_distance_m)
+                utilities.append(
+                    availability
+                    * (mall.floor_area_m2 * mall.attractiveness)
+                    / distance**beta
+                )
+            denominator = sum(utilities)
+            setattr(mesh, index_field, utilities[0] / denominator if denominator > 0 else None)
+            setattr(mesh, availability_field, target_availability)
 
 
 SCORE_FEATURES = (

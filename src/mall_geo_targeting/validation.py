@@ -419,8 +419,95 @@ def validate_competitor_candidates(candidates_path: Path, malls_path: Path) -> l
     return issues
 
 
+def validate_scenarios(path: Path) -> list[ValidationIssue]:
+    """Validate editable assumptions and keep them explicitly uncalibrated and display-only."""
+    issues: list[ValidationIssue] = []
+    try:
+        config = load_yaml(path)
+    except (OSError, TypeError, ValueError) as exc:
+        _issue(issues, "ERROR", "scenarios", f"scenarios.yamlを読み込めません: {exc}")
+        return issues
+    metadata = config.get("scenario_metadata")
+    if not isinstance(metadata, dict):
+        _issue(issues, "ERROR", "scenarios", "scenario_metadataが必要です")
+        return issues
+    if metadata.get("calibration_status") != "uncalibrated_scenario":
+        _issue(issues, "ERROR", "scenarios", "calibration_statusはuncalibrated_scenarioが必要です")
+    if metadata.get("editable_by") != "planner":
+        _issue(issues, "ERROR", "scenarios", "editable_byはplannerが必要です")
+    try:
+        date.fromisoformat(str(metadata.get("last_updated_at", "")))
+    except ValueError:
+        _issue(issues, "ERROR", "scenarios", "last_updated_atはYYYY-MM-DDで指定してください")
+    transport = config.get("transport_choice")
+    if not isinstance(transport, dict):
+        _issue(issues, "ERROR", "scenarios", "transport_choiceが必要です")
+        return issues
+    if transport.get("score_integration") != "display_only":
+        _issue(issues, "ERROR", "scenarios", "transport_choiceはdisplay_onlyである必要があります")
+    if transport.get("calibration_status") != "uncalibrated_scenario":
+        _issue(issues, "ERROR", "scenarios", "transport_choiceはuncalibrated_scenarioである必要があります")
+    if transport.get("method") != "straight_line_distance_with_mode_availability":
+        _issue(issues, "ERROR", "scenarios", "transport_choice.methodが未対応です")
+    modes = transport.get("modes")
+    if not isinstance(modes, dict) or set(modes) != {"car", "walk", "bike"}:
+        _issue(issues, "ERROR", "scenarios", "transport_choice.modesにはcar、walk、bikeが必要です")
+        return issues
+    for name, mode in modes.items():
+        if not isinstance(mode, dict):
+            _issue(issues, "ERROR", "scenarios", f"{name}設定が不正です")
+            continue
+        try:
+            beta = float(mode["beta"])
+            minimum = float(mode["minimum_distance_m"])
+        except (KeyError, TypeError, ValueError):
+            _issue(issues, "ERROR", "scenarios", f"{name}のbetaまたはminimum_distance_mが不正です")
+            continue
+        if beta <= 0 or minimum <= 0:
+            _issue(issues, "ERROR", "scenarios", f"{name}のbetaとminimum_distance_mは正数が必要です")
+        availability = mode.get("availability")
+        if not isinstance(availability, dict):
+            _issue(issues, "ERROR", "scenarios", f"{name}のavailabilityが必要です")
+            continue
+        kind = availability.get("type")
+        if kind == "no_hard_limit":
+            if availability.get("full_availability_until_m") is not None or availability.get("zero_availability_from_m") is not None:
+                _issue(issues, "ERROR", "scenarios", f"{name}のno_hard_limitに距離上限を指定できません")
+        elif kind == "linear_decay":
+            try:
+                full = float(availability["full_availability_until_m"])
+                zero = float(availability["zero_availability_from_m"])
+            except (KeyError, TypeError, ValueError):
+                _issue(issues, "ERROR", "scenarios", f"{name}のlinear_decay距離が不正です")
+            else:
+                if not 0 <= full < zero:
+                    _issue(issues, "ERROR", "scenarios", f"{name}のlinear_decay距離順序が不正です")
+        else:
+            _issue(issues, "ERROR", "scenarios", f"{name}のavailability.typeが未対応です")
+    shares = config.get("transport_mode_shares")
+    if not isinstance(shares, dict) or shares.get("enabled") is not False or shares.get("integration_status") != "not_implemented":
+        _issue(issues, "ERROR", "scenarios", "交通手段割合は未実装・無効である必要があります")
+    elif shares.get("calibration_status") != "uncalibrated_scenario":
+        _issue(issues, "ERROR", "scenarios", "交通手段割合はuncalibrated_scenarioである必要があります")
+    for section in ("facility_choice", "advertising_score"):
+        if "uncalibrated_scenario" not in str(config.get(section, {})):
+            _issue(issues, "ERROR", "scenarios", f"{section}にuncalibrated_scenarioの明示が必要です")
+    if config.get("map_display", {}).get("calibration_status") != "uncalibrated_scenario":
+        _issue(issues, "ERROR", "scenarios", "map_displayはuncalibrated_scenarioである必要があります")
+    try:
+        existing_huff = config["facility_choice"]["existing_huff"]
+        minimum_huff_distance = float(existing_huff["minimum_distance_m"])
+    except (KeyError, TypeError, ValueError):
+        _issue(issues, "ERROR", "scenarios", "既存Huffのminimum_distance_mが不正です")
+    else:
+        if minimum_huff_distance <= 0:
+            _issue(issues, "ERROR", "scenarios", "既存Huffのminimum_distance_mは正数が必要です")
+    return issues
+
+
 def validate_inputs(project_root: Path, require_real: bool = False) -> ValidationReport:
     issues: list[ValidationIssue] = []
+    issues.extend(validate_scenarios(project_root / "config" / "scenarios.yaml"))
     registry = load_yaml(project_root / "config" / "data_sources.yaml")
     requirements = registry.get("real_data_requirements", {})
     licenses = load_yaml(project_root / "config" / "licenses.yaml")
