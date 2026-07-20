@@ -49,6 +49,31 @@ def _matches(properties: dict[str, Any], selectors: dict[str, Any] | list[dict[s
     return any(str(properties.get(item["key"], "")) in {str(v) for v in item["values"]} for item in choices)
 
 
+def _is_walkable(properties: dict[str, Any], selectors: dict[str, Any] | list[dict[str, Any]]) -> bool:
+    if str(properties.get("access", "")) in {"no", "private"}:
+        return False
+    if str(properties.get("foot", "")) in {"no", "private"}:
+        return False
+    return _matches(properties, selectors)
+
+
+def _is_station(properties: dict[str, Any], selectors: dict[str, Any] | list[dict[str, Any]]) -> bool:
+    return _matches(properties, selectors) and (
+        str(properties.get("railway", "")) in {"station", "halt"}
+        or str(properties.get("train", "")) == "yes"
+    )
+
+
+def _is_bus_stop(properties: dict[str, Any], selectors: dict[str, Any] | list[dict[str, Any]]) -> bool:
+    if not _matches(properties, selectors):
+        return False
+    if properties.get("railway") is not None or str(properties.get("train", "")) == "yes":
+        return False
+    return str(properties.get("highway", "")) == "bus_stop" or str(
+        properties.get("bus", "")
+    ) in {"yes", "designated"}
+
+
 def _point_for_geometry(geometry: dict[str, Any]) -> tuple[float, float] | None:
     kind = geometry.get("type")
     coordinates = geometry.get("coordinates")
@@ -67,7 +92,8 @@ def load_osm_geojson(path: Path, config: dict[str, Any], projection: LocalProjec
     if str(config.get("crs", "")) != "EPSG:4326":
         raise OsmAdapterError("初期OSMアダプターはWGS84 (EPSG:4326) GeoJSONのみ対応します")
     try:
-        document = json.loads(path.read_text(encoding="utf-8"))
+        with path.open(encoding="utf-8") as input_file:
+            document = json.load(input_file)
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise OsmAdapterError(f"OSM GeoJSONを読み込めません: {path}: {exc}") from exc
     if document.get("type") != "FeatureCollection" or not isinstance(document.get("features"), list):
@@ -94,14 +120,14 @@ def load_osm_geojson(path: Path, config: dict[str, Any], projection: LocalProjec
                     roads.append(line)
                     if _matches(properties, tags["major_roads"]):
                         major.append(line)
-                    if _matches(properties, tags["walkable_roads"]):
+                    if _is_walkable(properties, tags["walkable_roads"]):
                         walkable.append(line)
             point = _point_for_geometry(geometry)
             if point is not None:
                 projected = projection.project(*point)
-                if _matches(properties, tags["stations"]):
+                if _is_station(properties, tags["stations"]):
                     stations.append(projected)
-                if _matches(properties, tags["bus_stops"]):
+                if _is_bus_stop(properties, tags["bus_stops"]):
                     buses.append(projected)
                 if _matches(properties, tags["parking"]):
                     parking.append(projected)
@@ -137,6 +163,31 @@ def _line_length_in_bounds(lines: list[list[tuple[float, float]]], bounds: tuple
     return sum(_clipped_segment_length(a, b, bounds) for line in lines for a, b in zip(line, line[1:], strict=False))
 
 
+def _indexed_line_lengths(
+    lines: list[list[tuple[float, float]]],
+    bounds_by_mesh: list[tuple[float, float, float, float]],
+    cell_size_m: float = 1000,
+) -> list[float]:
+    """Allocate line lengths using a compact index of meshes, not the large road set."""
+    cells: dict[tuple[int, int], list[int]] = {}
+    for index, (xmin, ymin, xmax, ymax) in enumerate(bounds_by_mesh):
+        for x_cell in range(int(xmin // cell_size_m), int(xmax // cell_size_m) + 1):
+            for y_cell in range(int(ymin // cell_size_m), int(ymax // cell_size_m) + 1):
+                cells.setdefault((x_cell, y_cell), []).append(index)
+    lengths = [0.0] * len(bounds_by_mesh)
+    for line in lines:
+        for a, b in zip(line, line[1:], strict=False):
+            xmin, xmax = sorted((a[0], b[0]))
+            ymin, ymax = sorted((a[1], b[1]))
+            candidates: set[int] = set()
+            for x_cell in range(int(xmin // cell_size_m), int(xmax // cell_size_m) + 1):
+                for y_cell in range(int(ymin // cell_size_m), int(ymax // cell_size_m) + 1):
+                    candidates.update(cells.get((x_cell, y_cell), ()))
+            for index in candidates:
+                lengths[index] += _clipped_segment_length(a, b, bounds_by_mesh[index])
+    return lengths
+
+
 def _proximity(distance: float | None, maximum: float) -> float | None:
     return None if distance is None else max(0.0, 1.0 - distance / maximum)
 
@@ -157,16 +208,28 @@ def calculate_osm_accessibility(
     if total_weight <= 0:
         raise ValueError("到達性要素の重み合計は正数である必要があります")
     mall_xy = projection.project(mall.longitude, mall.latitude)
+    bounds_by_mesh: list[tuple[float, float, float, float]] = []
     for mesh in meshes:
         projected_polygon = [projection.project(point[0], point[1]) for point in mesh.polygon]
         xs, ys = [p[0] for p in projected_polygon], [p[1] for p in projected_polygon]
-        bounds = min(xs), min(ys), max(xs), max(ys)
+        bounds_by_mesh.append((min(xs), min(ys), max(xs), max(ys)))
+    road_lengths = _indexed_line_lengths(data.roads, bounds_by_mesh) if data.roads else None
+    major_lengths = (
+        _indexed_line_lengths(data.major_roads, bounds_by_mesh) if data.major_roads else None
+    )
+    walkable_lengths = (
+        _indexed_line_lengths(data.walkable_roads, bounds_by_mesh)
+        if data.walkable_roads
+        else None
+    )
+    for index, mesh in enumerate(meshes):
+        bounds = bounds_by_mesh[index]
         center = projection.project(mesh.center_longitude, mesh.center_latitude)
         width, height = bounds[2] - bounds[0], bounds[3] - bounds[1]
         area_km2 = width * height / 1_000_000
-        mesh.road_length_m = round(_line_length_in_bounds(data.roads, bounds), 2) if data.roads else None
-        mesh.major_road_length_m = round(_line_length_in_bounds(data.major_roads, bounds), 2) if data.major_roads else None
-        mesh.walkable_road_length_m = round(_line_length_in_bounds(data.walkable_roads, bounds), 2) if data.walkable_roads else None
+        mesh.road_length_m = round(road_lengths[index], 2) if road_lengths else None
+        mesh.major_road_length_m = round(major_lengths[index], 2) if major_lengths else None
+        mesh.walkable_road_length_m = round(walkable_lengths[index], 2) if walkable_lengths else None
         mesh.nearest_station_distance_m = round(min((math.dist(center, point) for point in data.stations), default=math.inf), 2) if data.stations else None
         mesh.nearest_bus_stop_distance_m = round(min((math.dist(center, point) for point in data.bus_stops), default=math.inf), 2) if data.bus_stops else None
         mesh.parking_count = sum(bounds[0] <= p[0] <= bounds[2] and bounds[1] <= p[1] <= bounds[3] for p in data.parking) if data.parking else None

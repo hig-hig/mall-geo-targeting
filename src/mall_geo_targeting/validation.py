@@ -7,6 +7,7 @@ import json
 import logging
 import math
 import re
+from collections import Counter
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -82,6 +83,9 @@ def _validate_metadata(
     bbox = metadata["coverage_area"]
     if not _valid_bbox(bbox):
         _issue(issues, "ERROR", source_name, "coverage_areaはWGS84の[西,南,東,北]で指定してください")
+    query_bbox = metadata.get("query_bbox")
+    if query_bbox is not None and not _valid_bbox(query_bbox):
+        _issue(issues, "ERROR", source_name, "query_bboxはWGS84の[西,南,東,北]で指定してください")
     if metadata["is_sample"] is True:
         severity = "ERROR" if require_real else "WARNING"
         _issue(issues, severity, source_name, "サンプルデータです。実分析には使用できません")
@@ -152,7 +156,7 @@ def _validate_geojson_common(
             _issue(issues, "ERROR", source_name, f"Feature {index}にgeometryがありません")
             continue
         coordinates.extend(_coordinates(geometry))
-    duplicates = sorted({identifier for identifier in ids if ids.count(identifier) > 1})
+    duplicates = sorted(identifier for identifier, count in Counter(ids).items() if count > 1)
     if duplicates:
         _issue(issues, "ERROR", source_name, f"Feature IDが重複しています: {', '.join(duplicates)}")
     if missing_id_count:
@@ -186,6 +190,22 @@ def _bbox_contains(container: Iterable[float], required: Iterable[float]) -> boo
     west, south, east, north = (float(item) for item in container)
     req_west, req_south, req_east, req_north = (float(item) for item in required)
     return west <= req_west and south <= req_south and east >= req_east and north >= req_north
+
+
+def _bbox_within_margin(
+    value: Iterable[float], container: Iterable[float], margin_m: float
+) -> bool:
+    west, south, east, north = (float(item) for item in container)
+    latitude = (south + north) / 2
+    latitude_margin = margin_m / 111_320
+    longitude_margin = margin_m / (111_320 * math.cos(math.radians(latitude)))
+    expanded = (
+        west - longitude_margin,
+        south - latitude_margin,
+        east + longitude_margin,
+        north + latitude_margin,
+    )
+    return _bbox_contains(expanded, value)
 
 
 def _validate_malls(path: Path, issues: list[ValidationIssue]) -> tuple[float, float] | None:
@@ -411,11 +431,22 @@ def validate_inputs(project_root: Path, require_real: bool = False) -> Validatio
                 bool(requirements.get("require_feature_ids", True)) and (require_real or not sample),
                 issues,
             )
-            if actual_bbox is not None and not _bbox_contains(actual_bbox, required_bbox):
+            metadata = metadata_by_source.get(source_name, {})
+            acquisition_bbox = metadata.get("query_bbox", metadata.get("coverage_area"))
+            if _valid_bbox(acquisition_bbox) and not _bbox_contains(acquisition_bbox, required_bbox):
                 _issue(issues, "WARNING" if sample and not require_real else "ERROR", source_name, "GeoJSONが分析半径＋bufferを十分に覆っていません")
-            declared_bbox = metadata_by_source.get(source_name, {}).get("coverage_area")
-            if _valid_bbox(declared_bbox) and actual_bbox is not None and not _bbox_contains(declared_bbox, actual_bbox):
-                _issue(issues, "ERROR", source_name, "metadataのcoverage_areaが実座標範囲を含んでいません")
+            if _valid_bbox(acquisition_bbox) and actual_bbox is not None:
+                tolerance_m = float(
+                    requirements.get("geospatial_feature_bbox_tolerance_m", 5000)
+                )
+                if not _bbox_within_margin(actual_bbox, acquisition_bbox, tolerance_m):
+                    _issue(
+                        issues,
+                        "ERROR",
+                        source_name,
+                        "GeoJSON実座標がmetadataの取得範囲を許容値以上に逸脱しています",
+                    )
+            del document
             try:
                 if source_name == "osm":
                     load_osm_geojson(paths[source_name], load_yaml(project_root / "config" / "osm.yaml"), projection)

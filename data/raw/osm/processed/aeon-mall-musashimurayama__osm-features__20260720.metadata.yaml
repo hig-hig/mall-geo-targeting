@@ -1,0 +1,73 @@
+dataset_name: イオンモールむさし村山周辺 OpenStreetMap地物
+source: OpenStreetMap contributors (Overpass API)
+source_url: https://overpass-api.de/api/interpreter
+license: Open Database License (ODbL) 1.0
+commercial_use_allowed: true
+attribution_required: true
+retrieved_at: '2026-07-20'
+coverage_area: &id001
+- 139.2519309911
+- 35.6385926591
+- 139.5175690089
+- 35.8541873409
+processing: Overpass API JSONのnodeをPoint、way.geometryをLineString、閉じた駐車場等をPolygonへ変換。multipolygon
+  relationは不正な面の生成を避け、boundsまたはcenterの代表Pointへ変換した。同一OSM要素はタグを統合し、geometryがない要素は除外した。
+is_sample: false
+source_files:
+- data/raw/osm/source/aeon-mall-musashimurayama__osm-roads-raw__20260720.json
+- data/raw/osm/source/aeon-mall-musashimurayama__osm-poi-raw__20260720.json
+source_generator: Overpass API 0.7.62.11 87bfad18
+query_bbox: *id001
+required_bbox:
+- 139.2629992418
+- 35.6475757708
+- 139.5065007582
+- 35.8452042292
+query_conditions:
+  roads: highway=motorway|trunk|primary|secondary|tertiary|residential|living_street|service|footway|path|pedestrian
+  poi: amenity=parking、railway/public_transportの駅・platform、highway=bus_stop
+  note: 元JSONにクエリ本文は含まれないため、ファイル内容と取得時の作業条件を記録。
+feature_counts:
+  total: 129675
+  elements:
+    node: 6153
+    relation: 231
+    way: 123291
+  geometry:
+    LineString: 107872
+    Point: 6384
+    Polygon: 15419
+  category:
+    bus_stops: 5202
+    parking: 15049
+    roads: 107785
+    stations: 126
+excluded_counts:
+  duplicate_source_elements_merged: 10
+processing_notices:
+  relation_represented_as_point: 231
+highway_counts:
+  bus_stop: 5198
+  footway: 25252
+  living_street: 2
+  motorway: 330
+  path: 5794
+  pedestrian: 1846
+  platform: 7
+  primary: 1435
+  residential: 32228
+  secondary: 1018
+  service: 36313
+  tertiary: 4163
+  trunk: 676
+walkable_excluded_counts:
+  access_no_or_private: 2135
+  foot_no_or_private: 113
+  unique_features: 2223
+output_bbox:
+- 139.2364634
+- 35.6180754
+- 139.554085
+- 35.8777985
+crs: EPSG:4326
+attribution: © OpenStreetMap contributors

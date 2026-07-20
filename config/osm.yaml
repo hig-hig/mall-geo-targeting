@@ -1,5 +1,5 @@
 {
-  "path": "data/raw/osm/sample_osm.geojson",
+  "path": "data/raw/osm/processed/aeon-mall-musashimurayama__osm-features__20260720.geojson",
   "crs": "EPSG:4326",
   "tags": {
     "roads": {"key": "highway", "values": ["motorway", "trunk", "primary", "secondary", "tertiary", "residential", "living_street", "service", "footway", "path", "pedestrian"]},

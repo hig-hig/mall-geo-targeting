@@ -3,6 +3,7 @@
   "real_data_requirements": {
     "minimum_estat_mesh_coverage_ratio": 0.80,
     "geospatial_coverage_buffer_m": 1000,
+    "geospatial_feature_bbox_tolerance_m": 5000,
     "require_feature_ids": true
   },
   "sources": {
@@ -19,8 +20,8 @@
       "license_record_name": "e-Stat 地域メッシュ統計（国勢調査人口等基本集計）"
     },
     "osm": {
-      "path": "data/raw/osm/sample_osm.geojson",
-      "metadata_path": "data/raw/osm/sample_osm.metadata.yaml",
+      "path": "data/raw/osm/processed/aeon-mall-musashimurayama__osm-features__20260720.geojson",
+      "metadata_path": "data/raw/osm/processed/aeon-mall-musashimurayama__osm-features__20260720.metadata.yaml",
       "format": "osm_geojson",
       "license_record_name": "OpenStreetMap"
     },

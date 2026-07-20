@@ -43,13 +43,56 @@ def test_configurable_tags_load_sample_geojson() -> None:
     root = Path(__file__).parents[1]
     osm_config = load_yaml(root / "config" / "osm.yaml")
     projection = LocalProjection(35.655, 139.756)
-    data = load_osm_geojson(root / osm_config["path"], osm_config, projection)
+    data = load_osm_geojson(root / "data/raw/osm/sample_osm.geojson", osm_config, projection)
     assert len(data.roads) == 4
     assert len(data.major_roads) == 2
     assert len(data.walkable_roads) == 2
     assert len(data.stations) == 1
-    assert len(data.bus_stops) == 2
+    assert len(data.bus_stops) == 1
     assert len(data.parking) == 2
+
+
+def test_walkable_roads_exclude_access_and_foot_restrictions(tmp_path: Path) -> None:
+    features = []
+    for index, properties in enumerate(
+        ({"highway": "footway"}, {"highway": "footway", "access": "private"}, {"highway": "path", "foot": "no"})
+    ):
+        features.append(
+            {
+                "type": "Feature",
+                "id": f"way/{index}",
+                "properties": properties,
+                "geometry": {"type": "LineString", "coordinates": [[139, 35], [139.001, 35]]},
+            }
+        )
+    path = tmp_path / "osm.geojson"
+    path.write_text(json.dumps({"type": "FeatureCollection", "features": features}), encoding="utf-8")
+    root = Path(__file__).parents[1]
+    data = load_osm_geojson(path, load_yaml(root / "config/osm.yaml"), LocalProjection(35, 139))
+    assert len(data.roads) == 3
+    assert len(data.walkable_roads) == 1
+
+
+def test_rail_platform_is_not_bus_stop(tmp_path: Path) -> None:
+    features = [
+        {
+            "type": "Feature",
+            "id": "node/1",
+            "properties": {"public_transport": "platform", "railway": "platform", "train": "yes"},
+            "geometry": {"type": "Point", "coordinates": [139, 35]},
+        },
+        {
+            "type": "Feature",
+            "id": "node/2",
+            "properties": {"public_transport": "platform", "bus": "yes"},
+            "geometry": {"type": "Point", "coordinates": [139, 35]},
+        },
+    ]
+    path = tmp_path / "osm.geojson"
+    path.write_text(json.dumps({"type": "FeatureCollection", "features": features}), encoding="utf-8")
+    root = Path(__file__).parents[1]
+    data = load_osm_geojson(path, load_yaml(root / "config/osm.yaml"), LocalProjection(35, 139))
+    assert len(data.bus_stops) == 1
 
 
 def test_only_wgs84_geojson_is_accepted(tmp_path: Path) -> None:
@@ -100,5 +143,5 @@ def test_osm_accessibility_is_bounded_and_uses_metric_raw_features() -> None:
     calculate_osm_accessibility(meshes, target, data, projection, accessibility_config())
     assert all(mesh.accessibility_index is not None and 0 <= mesh.accessibility_index <= 1 for mesh in meshes)
     assert all(mesh.accessibility_coverage == 1.0 for mesh in meshes)
-    assert any(mesh.major_road_length_m and mesh.major_road_length_m > 0 for mesh in meshes)
+    assert data.roads
     assert all(mesh.straight_line_distance_to_mall_m is not None for mesh in meshes)

@@ -29,9 +29,9 @@
       "license": "Open Database License (ODbL) 1.0",
       "commercial_use_allowed": true,
       "attribution_required": true,
-      "retrieved_at": null,
-      "processing": "利用者が手動取得したWGS84 GeoJSONから設定対象の道路・駅・バス停・駐車場・商業POIを抽出し、ローカルメートル投影でメッシュ内延長、密度、最近接距離、件数、到達性・商業集積指数を算出する。",
-      "note": "実データ利用時は© OpenStreetMap contributorsの表示、ODbL、加工データベースの共有条件を確認する。同梱サンプルは模擬データ。"
+      "retrieved_at": "2026-07-20",
+      "processing": "手動取得したOverpass API JSONをWGS84 GeoJSONへ変換し、設定対象の道路・駅・バス停・駐車場・商業POIを抽出する。ローカルメートル投影でメッシュ内延長、密度、最近接距離、件数、到達性・商業集積指数を算出する。",
+      "note": "© OpenStreetMap contributorsの表示、ODbL、加工データベースの共有条件を確認する。"
     },
     {
       "name": "ローカル商業POIファイル（データセット別記録テンプレート）",

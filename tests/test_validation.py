@@ -5,7 +5,13 @@ import yaml
 
 from mall_geo_targeting.pipeline import run
 from mall_geo_targeting.config import gross_leasable_area_ratio, load_yaml, mall_from_dict
-from mall_geo_targeting.validation import _validate_malls, validate_competitor_candidates, validate_inputs
+from mall_geo_targeting.validation import (
+    _bbox_contains,
+    _bbox_within_margin,
+    _validate_malls,
+    validate_competitor_candidates,
+    validate_inputs,
+)
 
 
 def test_mixed_real_and_sample_inputs_validate_with_explicit_warnings() -> None:
@@ -13,9 +19,10 @@ def test_mixed_real_and_sample_inputs_validate_with_explicit_warnings() -> None:
     report = validate_inputs(root)
     assert report.errors == []
     warned_sources = {issue.source for issue in report.warnings}
-    assert {"malls", "osm", "commercial"} <= warned_sources
+    assert {"malls", "commercial"} <= warned_sources
+    assert "osm" not in warned_sources
     assert "estat" not in warned_sources
-    assert sum("サンプルデータ" in issue.message for issue in report.warnings) == 2
+    assert sum("サンプルデータ" in issue.message for issue in report.warnings) == 1
     assert any(issue.source == "malls" and "暫定値" in issue.message for issue in report.warnings)
 
 
@@ -23,12 +30,27 @@ def test_require_real_rejects_samples_and_incomplete_coverage() -> None:
     root = Path(__file__).parents[1]
     report = validate_inputs(root, require_real=True)
     assert report.errors
-    assert {"osm", "commercial"} <= {issue.source for issue in report.errors}
+    assert {"commercial"} <= {issue.source for issue in report.errors}
+    assert "osm" not in {issue.source for issue in report.errors}
     assert "estat" not in {issue.source for issue in report.errors}
     assert not any(issue.source == "malls" and "サンプルデータ" in issue.message for issue in report.errors)
     assert any(issue.source == "malls" and "暫定値" in issue.message for issue in report.warnings)
     assert any("Feature ID" in issue.message for issue in report.errors)
     assert any("coverage" in issue.message or "覆っていません" in issue.message for issue in report.errors)
+
+
+def test_acquisition_bbox_can_prove_sparse_geojson_coverage() -> None:
+    required = [139.2, 35.6, 139.5, 35.9]
+    sparse_feature_bbox = [139.3, 35.7, 139.4, 35.8]
+    query_bbox = [139.1, 35.5, 139.6, 36.0]
+    assert not _bbox_contains(sparse_feature_bbox, required)
+    assert _bbox_contains(query_bbox, required)
+
+
+def test_feature_bbox_may_cross_query_boundary_only_within_tolerance() -> None:
+    query_bbox = [139.25, 35.63, 139.52, 35.86]
+    assert _bbox_within_margin([139.23, 35.61, 139.55, 35.88], query_bbox, 5000)
+    assert not _bbox_within_margin([139.0, 35.3, 140.0, 36.2], query_bbox, 5000)
 
 
 def test_pipeline_warns_when_sample_modes_are_selected(caplog) -> None:
