@@ -155,13 +155,46 @@ def test_map_legend_uses_five_quantile_ranges_and_dynamic_threshold_note() -> No
         {"mesh_size_m": 250, "threshold": 42.5, "delivery_quantile": 0.8},
     )
     assert "[0,.2,.4,.6,.8,1]" in html
-    assert 'format(b[i],metric)+"超～"+format(b[i+1],metric)' in html
+    assert 'format(lower,metric)+"超～"+format(b[i+1],metric)' in html
     assert 'format(b[i],metric)+" 以上"' not in html
     assert "分類対象" in html
     assert "フィルター変更時に区切りも再計算" in html
     assert "データなし" in html
     assert 'note.hidden=active!=="score"' in html
     assert "配信適格メッシュ内の上位" in html
+
+
+def test_choice_index_legend_uses_fixed_twenty_point_ranges() -> None:
+    target = _mall("target", "対象モール", 139.4, target=True)
+    map_display = {
+        "legend_method": "visible_mesh_quintiles",
+        "choice_index_legend": {
+            "method": "fixed_percentage_intervals",
+            "boundaries": [0, 20, 40, 60, 80, 100],
+            "unit": "percent",
+            "comparable_across_modes": True,
+        },
+    }
+    html = build_map_html(
+        [_mesh("M_1", eligible=True, zone=False)],
+        target,
+        [],
+        {"mesh_size_m": 250, "threshold": 42.5, "map_display": map_display},
+    )
+    payload = _payload(html)
+
+    assert payload["context"]["map_display"] == map_display
+    assert html.count("fixedChoice:true") == 4
+    assert 'key:"huff_probability",unit:"%",scale:100,digits:1,fixedChoice:true' in html
+    for key in ("car_choice_index", "walk_choice_index", "bike_choice_index"):
+        assert f'key:"{key}",unit:"%",scale:100,digits:1,fixedChoice:true' in html
+    assert "[0,20,40,60,80,100]" in html
+    assert "while(n<4&&v>=b[n+1])n++" in html
+    assert "0%以上～20%未満" not in html  # Labels are generated dynamically in JavaScript.
+    assert '`${lower}%以上～${b[i+1]}%${i===4?"以下":"未満"}`' in html
+    assert 'metric.fixedChoice?"到達候補なし／No-data":"データなし"' in html
+    assert "[0,.2,.4,.6,.8,1]" in html
+    assert "if(metric.fixedChoice)n=fixedChoiceClass(v,b);else while" in html
 
 
 def test_map_explains_all_delivery_decision_patterns_and_score_contributions() -> None:

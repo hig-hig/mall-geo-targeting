@@ -140,6 +140,7 @@ def run(project_root: Path, data_mode: str | None = None, accessibility_mode: st
             "scenario_metadata": scenario_config["scenario_metadata"],
             "transport_choice": transport_choice_config,
             "transport_mode_shares": scenario_config["transport_mode_shares"],
+            "map_display": scenario_config["map_display"],
             "retrieved_at": retrieved_at,
         },
     )
