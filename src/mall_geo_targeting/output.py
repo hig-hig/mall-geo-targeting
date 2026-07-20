@@ -5,7 +5,9 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
+from typing import Mapping
 
+from .map_output import build_map_html
 from .models import Mall, Mesh
 
 
@@ -23,7 +25,14 @@ def _csv_row(mesh: Mesh) -> dict[str, object]:
     return properties
 
 
-def write_outputs(meshes: list[Mesh], mall: Mall, output_dir: Path) -> dict[str, Path]:
+def write_outputs(
+    meshes: list[Mesh],
+    mall: Mall,
+    output_dir: Path,
+    *,
+    competitors: list[Mall] | None = None,
+    map_context: Mapping[str, object] | None = None,
+) -> dict[str, Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     csv_path, geojson_path, html_path = output_dir / "mesh_scores.csv", output_dir / "delivery_zones.geojson", output_dir / "map.html"
     with csv_path.open("w", encoding="utf-8", newline="") as stream:
@@ -33,7 +42,11 @@ def write_outputs(meshes: list[Mesh], mall: Mall, output_dir: Path) -> dict[str,
     features = [{"type": "Feature", "properties": _properties(mesh), "geometry": {"type": "Polygon", "coordinates": [mesh.polygon]}} for mesh in meshes]
     geojson = {"type": "FeatureCollection", "features": features}
     geojson_path.write_text(json.dumps(geojson, ensure_ascii=False, indent=2), encoding="utf-8")
-    data = json.dumps(geojson, ensure_ascii=False).replace("</", "<\\/")
-    html = f'''<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>獲得ポテンシャルマップ</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>html,body,#map{{height:100%;margin:0}}.legend{{background:white;padding:8px}}</style></head><body><div id="map"></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>const data={data};const map=L.map('map').setView([{mall.latitude},{mall.longitude}],14);L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png',{{attribution:'&copy; OpenStreetMap contributors'}}).addTo(map);function color(p){{if(p===null)return '#999';return p>=60?'#800026':p>=45?'#FC4E2A':p>=30?'#FEB24C':'#FFEDA0'}}L.geoJSON(data,{{style:f=>({{color:f.properties.is_delivery_zone?'#006d2c':'#666',weight:f.properties.is_delivery_zone?2:0.5,fillColor:color(f.properties.acquisition_potential_score),fillOpacity:.65}}),onEachFeature:(f,l)=>l.bindPopup(`<b>${{f.properties.mesh_id}}</b><br>獲得ポテンシャル: ${{f.properties.acquisition_potential_score ?? '欠損'}}<br>品質ランク: ${{f.properties.score_quality_tier ?? '欠損'}}<br>カバレッジ: ${{f.properties.score_coverage === null ? '欠損' : (f.properties.score_coverage*100).toFixed(0)+'%'}}<br>必須特徴量ゲート: ${{f.properties.required_feature_gate_passed ? '合格' : '不合格'}}<br>不足グループ: ${{f.properties.required_groups_missing.length ? f.properties.required_groups_missing.join(', ') : 'なし'}}<br>配信適格: ${{f.properties.eligible_for_delivery ? 'はい' : 'いいえ'}}<br>到達性指数: ${{f.properties.accessibility_index ?? '欠損'}}<br>到達性coverage: ${{f.properties.accessibility_coverage === null ? '欠損' : (f.properties.accessibility_coverage*100).toFixed(0)+'%'}}<br>駅距離: ${{f.properties.nearest_station_distance_m ?? '欠損'}} m<br>バス停距離: ${{f.properties.nearest_bus_stop_distance_m ?? '欠損'}} m<br>幹線道路密度: ${{f.properties.major_road_length_m === null ? '欠損' : (f.properties.major_road_length_m/0.0625).toFixed(0)+' m/km²'}}<br>歩行道路密度: ${{f.properties.walkable_road_length_m === null ? '欠損' : (f.properties.walkable_road_length_m/0.0625).toFixed(0)+' m/km²'}}<br>商業POI: ${{f.properties.commercial_poi_total ?? '欠損'}}件<br>小売: ${{f.properties.retail_count ?? '欠損'}} / スーパー: ${{f.properties.supermarket_count ?? '欠損'}} / コンビニ: ${{f.properties.convenience_store_count ?? '欠損'}}<br>飲食店: ${{f.properties.restaurant_count ?? '欠損'}} / カフェ: ${{f.properties.cafe_count ?? '欠損'}}<br>商業POI密度: ${{f.properties.commercial_poi_density ?? '欠損'}} 件/km²<br>商業集積指数: ${{f.properties.commercial_concentration_index ?? '欠損'}}<br>商業coverage: ${{f.properties.commercial_coverage === null ? '欠損' : (f.properties.commercial_coverage*100).toFixed(0)+'%'}}<br>人口: ${{f.properties.population ?? '欠損'}}<br>Huff来館可能性: ${{f.properties.huff_probability === null ? '欠損' : (f.properties.huff_probability*100).toFixed(1)+'%'}}`)}}).addTo(map);L.marker([{mall.latitude},{mall.longitude}]).addTo(map).bindPopup({json.dumps(mall.name, ensure_ascii=False)});</script></body></html>'''
+    html = build_map_html(
+        meshes,
+        mall,
+        competitors or [],
+        map_context or {},
+    )
     html_path.write_text(html, encoding="utf-8")
     return {"csv": csv_path, "geojson": geojson_path, "html": html_path}

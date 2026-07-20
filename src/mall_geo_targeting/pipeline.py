@@ -16,6 +16,15 @@ from .validation import warn_for_sample_sources
 LOGGER = logging.getLogger(__name__)
 
 
+def _retrieved_at(project_root: Path, source_config: dict[str, object]) -> str | None:
+    metadata_path = source_config.get("metadata_path")
+    if not metadata_path:
+        return None
+    metadata = load_yaml(project_root / str(metadata_path))
+    value = metadata.get("retrieved_at")
+    return str(value) if value is not None else None
+
+
 def run(project_root: Path, data_mode: str | None = None, accessibility_mode: str | None = None, commercial_mode: str | None = None) -> dict[str, object]:
     data_sources = load_yaml(project_root / "config" / "data_sources.yaml")["sources"]
     malls_config = load_yaml(project_root / str(data_sources["malls"]["path"]))
@@ -92,7 +101,32 @@ def run(project_root: Path, data_mode: str | None = None, accessibility_mode: st
         required_feature_groups=required_groups,
     )
     threshold = assign_delivery_zones(meshes, float(analysis_config["high_score_quantile"]))
-    paths = write_outputs(meshes, target, project_root / str(analysis_config["output_directory"]))
+    retrieved_at = {
+        "estat": _retrieved_at(project_root, data_sources["estat"])
+        if selected_mode == "estat"
+        else None,
+        "osm": _retrieved_at(project_root, data_sources["osm"])
+        if selected_accessibility_mode == "osm"
+        else None,
+        "commercial": _retrieved_at(project_root, data_sources["commercial"])
+        if selected_commercial_mode in ("osm", "file")
+        else None,
+    }
+    paths = write_outputs(
+        meshes,
+        target,
+        project_root / str(analysis_config["output_directory"]),
+        competitors=competitors,
+        map_context={
+            "analysis_radius_m": analysis_radius_m,
+            "mesh_size_m": int(analysis_config["mesh_size_m"]),
+            "threshold": threshold,
+            "data_mode": selected_mode,
+            "accessibility_mode": selected_accessibility_mode,
+            "commercial_mode": selected_commercial_mode,
+            "retrieved_at": retrieved_at,
+        },
+    )
     quality_counts = {
         tier: sum(mesh.score_quality_tier == tier for mesh in meshes)
         for tier in ("A", "B", "C", "D")
