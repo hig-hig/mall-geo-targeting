@@ -5,3 +5,6 @@ __pycache__/
 .ruff_cache/
 .DS_Store
 data/raw/osm/source/*.json
+.env
+.env.*
+.vercel/

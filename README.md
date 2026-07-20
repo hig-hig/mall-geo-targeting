@@ -42,7 +42,7 @@ mall-geo-targeting --project-root . --accessibility-mode none --commercial-mode 
 
 - `mesh_scores.csv`: 全メッシュの入力値・来館可能性・獲得ポテンシャルスコア
 - `delivery_zones.geojson`: 全メッシュと配信ゾーン判定（GISへ投入可能）
-- `map.html`: 色分けされた確認用Leaflet地図（背景地図の表示にはインターネット接続が必要）
+- `map.html`: Canvas分析レイヤーと背景地図を備えた単一HTML
 
 ## テスト
 
@@ -456,6 +456,25 @@ outputs/ 生成物
 src/     Pythonパッケージ
 tests/   pytest
 ```
+
+## Vercel静的公開
+
+VercelではPython分析を実行せず、ローカルで生成・検証した地図だけを`public/index.html`として公開します。`outputs/`、CSV、GeoJSON、`data/`は公開ディレクトリに含めません。`public/index.html`は手編集する原稿ではなく、次の手順で作る生成物です。
+
+```bash
+.venv/bin/mall-geo-targeting \
+  --project-root . \
+  --data-mode estat \
+  --accessibility-mode osm \
+  --commercial-mode osm
+.venv/bin/python scripts/prepare_vercel.py
+```
+
+公開準備スクリプトは、対象施設、Canvas版識別子、実データモードを検査し、サンプルまたは旧Leaflet版を検出するとコピー前に失敗します。VercelのOutput Directoryは`public`です。
+
+公開物は、URLを知っている人がそのまま閲覧できる静的デモです。`robots.txt`と`noindex`メタタグで検索結果への掲載を抑止しますが、これはアクセス制御や機密保護ではありません。URLが第三者へ共有されれば閲覧でき、HTMLに埋め込まれたメッシュ、スコア、施設情報も抽出できます。
+
+CSV、GeoJSON、rawデータは`public/`へ配置せず、直接公開しません。地図内のe-Stat、© OpenStreetMap contributors、ODbL 1.0、CARTOの帰属表示は削除しないでください。
 
 ## 保留中の機能
 
