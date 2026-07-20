@@ -75,6 +75,46 @@ def test_huff_is_invariant_to_common_attractiveness_multiplier() -> None:
     assert scaled.huff_probability == pytest.approx(baseline.huff_probability)
 
 
+def test_additional_competitor_reduces_target_probability_and_order_is_irrelevant() -> None:
+    point = (35.0, 139.001)
+    target = Mall("target", "target", 35.0, 139.0, 78_000, 1.0)
+    first = Mall("first", "first", 35.0, 139.002, 63_000, 1.0)
+    added = Mall("added", "added", 35.0, 139.003, 59_747, 1.0)
+    baseline = Mesh("baseline", 0, 0, *point, [])
+    ordered = Mesh("ordered", 0, 0, *point, [])
+    reversed_order = Mesh("reversed", 0, 0, *point, [])
+    calculate_huff([baseline], target, [first], exponent=2)
+    calculate_huff([ordered], target, [first, added], exponent=2)
+    calculate_huff([reversed_order], target, [added, first], exponent=2)
+    assert ordered.huff_probability <= baseline.huff_probability
+    assert reversed_order.huff_probability == pytest.approx(ordered.huff_probability)
+
+
+def test_competitor_outside_analysis_radius_still_enters_huff_denominator() -> None:
+    target = Mall("target", "target", 35.0, 139.0, 78_000, 1.0)
+    outside = Mall("outside", "outside", 35.2, 139.0, 59_747, 1.0)
+    mesh = Mesh("mesh", 0, 0, 35.0, 139.001, [])
+    calculate_huff([mesh], target, [outside], exponent=2)
+    assert mesh.huff_probability is not None
+    assert 0 < mesh.huff_probability < 1
+
+
+def test_four_mall_huff_probabilities_sum_to_one() -> None:
+    point = (35.72, 139.36)
+    malls = [
+        Mall("target", "target", 35.74639, 139.38475, 78_000, 1.0),
+        Mall("tachikawa", "tachikawa", 35.71238, 139.4174, 63_000, 1.0),
+        Mall("hinode", "hinode", 35.7348, 139.27524, 64_000, 1.0),
+        Mall("moritown", "moritown", 35.71364, 139.36306, 59_747, 1.0),
+    ]
+    probabilities = []
+    for target in malls:
+        mesh = Mesh(target.id, 0, 0, *point, [])
+        calculate_huff([mesh], target, [mall for mall in malls if mall is not target], exponent=2)
+        probabilities.append(mesh.huff_probability)
+    assert sum(value for value in probabilities if value is not None) == pytest.approx(1.0)
+
+
 def test_renormalize_scores_available_features_and_zero_is_observed() -> None:
     zero = Mesh("zero", 0, 0, 35, 139, [], population=0, young_adult_ratio=0.0, smartphone_affinity=0.0, huff_probability=0.0)
     missing = Mesh("missing", 0, 0, 35, 139, [], population=None, young_adult_ratio=0.2, smartphone_affinity=0.8, huff_probability=0.5)

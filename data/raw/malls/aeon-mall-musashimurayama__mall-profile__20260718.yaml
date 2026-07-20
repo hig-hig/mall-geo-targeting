@@ -5,6 +5,8 @@
     "latitude": 35.746390,
     "longitude": 139.384750,
     "floor_area_m2": 78000,
+    "size_measurement_type": "gross_leasable_area",
+    "complex_id": "aeon-mall-musashimurayama",
     "attractiveness": 1.0,
     "attractiveness_method": "neutral_non_size_multiplier",
     "app_value": "coupon",
@@ -18,6 +20,8 @@
       "latitude": 35.712380,
       "longitude": 139.417400,
       "floor_area_m2": 63000,
+      "size_measurement_type": "gross_leasable_area",
+      "complex_id": "lalaport-tachikawa-tachihi",
       "attractiveness": 1.0,
       "attractiveness_method": "neutral_non_size_multiplier",
       "coordinate_status": "verified"
@@ -28,9 +32,28 @@
       "latitude": 35.734800,
       "longitude": 139.275240,
       "floor_area_m2": 64000,
+      "size_measurement_type": "gross_leasable_area",
+      "complex_id": "aeon-mall-hinode",
       "attractiveness": 1.0,
       "attractiveness_method": "neutral_non_size_multiplier",
       "coordinate_status": "verified"
+    },
+    {
+      "id": "moritown",
+      "name": "モリタウン",
+      "latitude": 35.713640,
+      "longitude": 139.363060,
+      "floor_area_m2": 59747,
+      "size_measurement_type": "official_store_area",
+      "size_measurement_note": "公表店舗面積を現行HuffモデルのGLA相当値として使用。厳密な国際的GLAではない。",
+      "attractiveness": 1.0,
+      "attractiveness_method": "neutral_non_size_multiplier",
+      "coordinate_status": "verified",
+      "source": "2025年 昭島ロフト出店発表『モリタウン施設概要』",
+      "retrieved_at": "2026-07-20",
+      "facility_scope": "モリタウン本体",
+      "complex_id": "moripark-akishima",
+      "excluded_huff_competitors": ["MOVIX昭島", "モリパーク アウトドアヴィレッジ", "ニトリ", "スポーツデポ"]
     }
   ],
   "analysis": {

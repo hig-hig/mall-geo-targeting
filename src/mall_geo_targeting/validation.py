@@ -256,6 +256,36 @@ def _validate_malls(path: Path, issues: list[ValidationIssue]) -> tuple[float, f
     duplicates = sorted({identifier for identifier in ids if ids.count(identifier) > 1})
     if duplicates:
         _issue(issues, "ERROR", "malls", f"モールIDが重複しています: {', '.join(duplicates)}")
+    allowed_size_measurements = {"gross_leasable_area", "official_store_area"}
+    complex_ids: list[str] = []
+    for value in all_values:
+        measurement = value.get("size_measurement_type")
+        if measurement not in allowed_size_measurements:
+            _issue(issues, "ERROR", "malls", f"{value.get('id')}のsize_measurement_typeが不正です")
+        complex_id = str(value.get("complex_id", "")).strip()
+        if not complex_id:
+            _issue(issues, "ERROR", "malls", f"{value.get('id')}にcomplex_idがありません")
+        else:
+            complex_ids.append(complex_id)
+    duplicate_complexes = sorted({value for value in complex_ids if complex_ids.count(value) > 1})
+    if duplicate_complexes:
+        _issue(issues, "ERROR", "malls", f"同一複合施設が重複登録されています: {', '.join(duplicate_complexes)}")
+    names = {str(value.get("name", "")) for value in all_values}
+    if "モリタウン" in names:
+        duplicate_moripark_facilities = names & {
+            "MOVIX昭島",
+            "モリパーク アウトドアヴィレッジ",
+            "ニトリ",
+            "スポーツデポ",
+        }
+        if duplicate_moripark_facilities:
+            _issue(
+                issues,
+                "ERROR",
+                "malls",
+                "モリタウンと周辺構成施設を別競合として重複登録できません: "
+                + ", ".join(sorted(duplicate_moripark_facilities)),
+            )
     for mall in malls:
         if not -90 <= mall.latitude <= 90 or not -180 <= mall.longitude <= 180:
             _issue(issues, "ERROR", "malls", f"{mall.id}の緯度経度が範囲外です")
@@ -381,6 +411,11 @@ def validate_competitor_candidates(candidates_path: Path, malls_path: Path) -> l
             else:
                 if distance_m > 1:
                     _issue(issues, "ERROR", "competitor_candidates", f"候補台帳と本番競合の座標が一致しません: {identifier}")
+            if registered.get("floor_area_m2") != candidate.get("gross_leasable_area_m2"):
+                _issue(issues, "ERROR", "competitor_candidates", f"候補台帳と本番競合の施設規模が一致しません: {identifier}")
+            for field in ("size_measurement_type", "facility_scope", "complex_id"):
+                if field in candidate and registered.get(field) != candidate.get(field):
+                    _issue(issues, "ERROR", "competitor_candidates", f"候補台帳と本番競合の{field}が一致しません: {identifier}")
     return issues
 
 

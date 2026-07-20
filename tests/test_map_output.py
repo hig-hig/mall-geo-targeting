@@ -1,9 +1,11 @@
 import json
 import shutil
 import subprocess
+from pathlib import Path
 
 import pytest
 
+from mall_geo_targeting.config import load_yaml, mall_from_dict
 from mall_geo_targeting.map_output import MAP_FIELDS, build_map_html
 from mall_geo_targeting.models import Mall, Mesh
 
@@ -130,6 +132,25 @@ def test_map_summary_is_generated_from_meshes_and_handles_missing_values() -> No
     score_index = 4 + MAP_FIELDS.index("acquisition_potential_score")
     assert payload["meshes"][1][score_index] is None
     assert 'return"欠損"' in html
+
+
+def test_real_mall_configuration_serializes_target_and_three_competitors() -> None:
+    root = Path(__file__).parents[1]
+    config = load_yaml(root / "data/raw/malls/aeon-mall-musashimurayama__mall-profile__20260718.yaml")
+    target = mall_from_dict(config["target_mall"])
+    competitors = [mall_from_dict(value) for value in config["competitor_malls"]]
+    html = build_map_html([], target, competitors, {"analysis_radius_m": 10_000})
+    malls = _payload(html)["malls"]
+    assert len(malls) == 4
+    assert {mall["name"] for mall in malls} == {
+        "イオンモールむさし村山",
+        "ららぽーと立川立飛",
+        "イオンモール日の出",
+        "モリタウン",
+    }
+    assert not {"MOVIX昭島", "モリパーク アウトドアヴィレッジ", "ニトリ", "スポーツデポ"} & {
+        mall["name"] for mall in malls
+    }
 
 
 def test_map_html_generation_is_deterministic() -> None:

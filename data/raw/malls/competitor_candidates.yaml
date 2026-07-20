@@ -128,20 +128,30 @@ competitor_candidates:
       - url: https://www.city.akishima.lg.jp/_res/projects/default_project/_page_/001/001/682/old_and_new_table.pdf
         role: official_old_new_address_table
     coordinate_source_distance_m: 75.7
-    gross_leasable_area_m2: null
+    gross_leasable_area_m2: 59747
+    size_measurement_type: official_store_area
+    size_measurement_note: 2025年の昭島ロフト出店発表「モリタウン施設概要」で公表された店舗面積。厳密な国際的GLAではなく、現行HuffモデルではGLA相当値として使用する。
+    floor_area_source: 2025年 昭島ロフト出店発表「モリタウン施設概要」
     floor_area_source_url: null
     attractiveness_reference: 1.0
     attractiveness_method: neutral_non_size_multiplier
-    registration_status: awaiting_floor_area_verification
-    verified_at: 2026-07-18
-    unresolved_fields:
-      - gross_leasable_area_m2
-      - floor_area_source_url
+    registration_status: registered
+    verified_at: 2026-07-20
+    unresolved_fields: []
     source_url: https://www.moritown.com/access/
-    retrieved_at: 2026-07-18
-    confirmed_facts: {}
-    confirmed_fields: [address, alternate_addresses, latitude, longitude]
-    unverified_fields: [gross_leasable_area_m2]
+    retrieved_at: 2026-07-20
+    facility_scope: モリタウン本体
+    complex_id: moripark-akishima
+    included_facilities: [モリタウン本館・東館等のモリタウン本体]
+    excluded_huff_competitors: [MOVIX昭島, モリパーク アウトドアヴィレッジ, ニトリ, スポーツデポ]
+    confirmed_facts:
+      store_area_m2: 59747
+      tenant_count_approx: 150
+      parking_spaces_approx: 2300
+      opened_on: 1984-04-27
+      operator: 昭和飛行機都市開発株式会社
+    confirmed_fields: [address, alternate_addresses, latitude, longitude, store_area_m2, tenant_count_approx, parking_spaces_approx, opened_on, operator]
+    unverified_fields: []
 
 attractiveness_reference_rule:
   method: neutral_non_size_multiplier

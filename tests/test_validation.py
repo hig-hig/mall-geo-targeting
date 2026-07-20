@@ -111,12 +111,15 @@ def test_all_registered_malls_use_neutral_non_size_multiplier() -> None:
     assert {value["attractiveness_method"] for value in [config["target_mall"], *config["competitor_malls"]]} == {
         "neutral_non_size_multiplier"
     }
-    assert [mall.attractiveness for mall in [target, *competitors]] == [1.0, 1.0, 1.0]
-    assert [mall.floor_area_m2 * mall.attractiveness for mall in [target, *competitors]] == [
-        78000,
-        63000,
-        64000,
-    ]
+    malls = [target, *competitors]
+    assert len(competitors) == 3
+    assert all(mall.attractiveness == 1.0 for mall in malls)
+    assert {mall.id: mall.floor_area_m2 * mall.attractiveness for mall in malls} == {
+        "aeon-mall-musashimurayama": 78000,
+        "lalaport-tachikawa-tachihi": 63000,
+        "aeon-mall-hinode": 64000,
+        "moritown": 59747,
+    }
 
 
 def test_legacy_gross_leasable_area_ratio_is_rejected(tmp_path: Path) -> None:
@@ -158,11 +161,37 @@ def test_duplicate_id_and_same_coordinate_are_rejected(tmp_path: Path) -> None:
     assert any("異常に近接" in issue.message for issue in issues)
 
 
-def test_moritown_remains_unregistered() -> None:
+def test_moritown_is_registered_with_verified_scope_and_size() -> None:
     root = Path(__file__).parents[1]
     candidates = load_yaml(root / "data/raw/malls/competitor_candidates.yaml")["competitor_candidates"]
     malls = load_yaml(root / "data/raw/malls/aeon-mall-musashimurayama__mall-profile__20260718.yaml")
     moritown = next(candidate for candidate in candidates if candidate["id"] == "moritown")
-    assert moritown["registration_status"] == "awaiting_floor_area_verification"
-    assert moritown["gross_leasable_area_m2"] is None
-    assert "moritown" not in {mall["id"] for mall in malls["competitor_malls"]}
+    registered = next(mall for mall in malls["competitor_malls"] if mall["id"] == "moritown")
+    assert moritown["registration_status"] == "registered"
+    assert moritown["gross_leasable_area_m2"] == 59747
+    assert moritown["size_measurement_type"] == "official_store_area"
+    assert (registered["latitude"], registered["longitude"]) == (35.71364, 139.36306)
+    assert registered["floor_area_m2"] == 59747
+    assert registered["attractiveness"] == 1.0
+    excluded = set(registered["excluded_huff_competitors"])
+    assert excluded == {"MOVIX昭島", "モリパーク アウトドアヴィレッジ", "ニトリ", "スポーツデポ"}
+
+
+def test_registered_malls_have_unique_complex_scopes() -> None:
+    root = Path(__file__).parents[1]
+    config = load_yaml(root / "data/raw/malls/aeon-mall-musashimurayama__mall-profile__20260718.yaml")
+    malls = [config["target_mall"], *config["competitor_malls"]]
+    assert len({mall["complex_id"] for mall in malls}) == len(malls)
+
+
+def test_moripark_component_cannot_be_registered_separately(tmp_path: Path) -> None:
+    root = Path(__file__).parents[1]
+    config = load_yaml(root / "data/raw/malls/aeon-mall-musashimurayama__mall-profile__20260718.yaml")
+    component = dict(config["competitor_malls"][-1])
+    component.update({"id": "movix-akishima", "name": "MOVIX昭島", "complex_id": "movix-akishima"})
+    config["competitor_malls"].append(component)
+    path = tmp_path / "malls.yaml"
+    path.write_text(yaml.safe_dump(config, allow_unicode=True), encoding="utf-8")
+    issues = []
+    _validate_malls(path, issues)
+    assert any("周辺構成施設" in issue.message for issue in issues)
