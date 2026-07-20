@@ -307,6 +307,7 @@ def calculate_potential(
         )
         mesh.required_feature_gate_passed = not mesh.required_groups_missing
         mesh.used_weights = {}
+        mesh.score_contributions = {}
         mesh.score_method = f"regional_features_v1:{app_value}:{missing_policy}"
         mesh.eligible_for_delivery = False
         if missing_policy == "strict" and mesh.missing_features:
@@ -317,6 +318,10 @@ def calculate_potential(
             continue
         mesh.used_weights = {
             name: round(selected_weights[name] / available_weight, 6)
+            for name in mesh.used_features
+        }
+        mesh.score_contributions = {
+            name: round(float(feature_values[name]) * mesh.used_weights[name] * 100, 6)
             for name in mesh.used_features
         }
         raw = sum(feature_values[name] * mesh.used_weights[name] for name in mesh.used_features)  # type: ignore[operator]

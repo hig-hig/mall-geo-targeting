@@ -124,6 +124,9 @@ def run(project_root: Path, data_mode: str | None = None, accessibility_mode: st
             "data_mode": selected_mode,
             "accessibility_mode": selected_accessibility_mode,
             "commercial_mode": selected_commercial_mode,
+            "population_survey_year": analysis_config.get("estat", {}).get("survey_year"),
+            "delivery_quantile": float(analysis_config["high_score_quantile"]),
+            "score_weights": presets[target.app_value],
             "retrieved_at": retrieved_at,
         },
     )

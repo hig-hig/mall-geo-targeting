@@ -46,6 +46,14 @@ def mall_from_dict(value: dict[str, Any]) -> Mall:
             floor_area_m2=floor_area_m2,
             attractiveness=1.0,
             app_value=str(value.get("app_value", "coupon")),
+            size_measurement_type=str(value.get("size_measurement_type", "gross_leasable_area")),
+            size_measurement_label=(
+                "公表店舗面積"
+                if value.get("size_measurement_type") == "official_store_area"
+                else "GLA"
+            ),
+            size_measurement_note=str(value.get("size_measurement_note", "")),
+            facility_scope=str(value.get("facility_scope", "")),
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise ConfigurationError(f"モール設定が不正です: {exc}") from exc

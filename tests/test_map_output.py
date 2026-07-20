@@ -44,6 +44,7 @@ def _mesh(identifier: str, *, eligible: bool, zone: bool) -> Mesh:
     mesh.eligible_for_delivery = eligible
     mesh.is_delivery_zone = zone
     mesh.used_features = ["huff_visit_probability"] if eligible else []
+    mesh.score_contributions = {"huff_visit_probability": 42.5} if eligible else {}
     return mesh
 
 
@@ -70,7 +71,7 @@ def test_map_contains_metrics_controls_malls_and_sources() -> None:
     for label in (
         "総合スコア",
         "人口",
-        "Huff来館確率",
+        "施設相対選択指数",
         "アクセシビリティ",
         "商業集積",
         "配信適格判定",
@@ -123,8 +124,10 @@ def test_map_summary_is_generated_from_meshes_and_handles_missing_values() -> No
     payload = _payload(html)
 
     assert payload["summary"] == {
+        "above_threshold_count": 1,
         "delivery_zone_count": 1,
         "eligible_count": 1,
+        "ineligible_above_threshold_count": 0,
         "mean_score_coverage": 1.0,
         "mesh_count": 2,
         "threshold": 42.5,
@@ -132,6 +135,44 @@ def test_map_summary_is_generated_from_meshes_and_handles_missing_values() -> No
     score_index = 4 + MAP_FIELDS.index("acquisition_potential_score")
     assert payload["meshes"][1][score_index] is None
     assert 'return"欠損"' in html
+
+
+def test_map_legend_uses_five_quantile_ranges_and_dynamic_threshold_note() -> None:
+    target = _mall("target", "対象モール", 139.4, target=True)
+    html = build_map_html(
+        [_mesh(f"M_{index}", eligible=True, zone=index == 4) for index in range(5)],
+        target,
+        [],
+        {"mesh_size_m": 250, "threshold": 42.5, "delivery_quantile": 0.8},
+    )
+    assert "[0,.2,.4,.6,.8,1]" in html
+    assert 'format(b[i],metric)+"超～"+format(b[i+1],metric)' in html
+    assert 'format(b[i],metric)+" 以上"' not in html
+    assert "分類対象" in html
+    assert "フィルター変更時に区切りも再計算" in html
+    assert "データなし" in html
+    assert 'note.hidden=active!=="score"' in html
+    assert "配信適格メッシュ内の上位" in html
+
+
+def test_map_explains_all_delivery_decision_patterns_and_score_contributions() -> None:
+    target = _mall("target", "対象モール", 139.4, target=True)
+    html = build_map_html(
+        [_mesh("M_1", eligible=True, zone=True)],
+        target,
+        [],
+        {"mesh_size_m": 250, "threshold": 42.5},
+    )
+    for phrase in (
+        "必要データが揃い、総合スコアが配信候補基準以上です。",
+        "必要データは揃っていますが、総合スコアが配信候補基準未満です。",
+        "総合スコアは基準以上ですが、必須データ条件を満たしていないため配信対象外です。",
+        "必須データ条件を満たさず、総合スコアも配信候補基準未満です。",
+    ):
+        assert phrase in html
+    assert "スコア寄与" in html
+    assert "閾値との差" in html
+    assert "不足している必須グループ" in html
 
 
 def test_real_mall_configuration_serializes_target_and_three_competitors() -> None:
@@ -151,6 +192,36 @@ def test_real_mall_configuration_serializes_target_and_three_competitors() -> No
     assert not {"MOVIX昭島", "モリパーク アウトドアヴィレッジ", "ニトリ", "スポーツデポ"} & {
         mall["name"] for mall in malls
     }
+    by_name = {mall["name"]: mall for mall in malls}
+    assert by_name["モリタウン"]["size_measurement_type"] == "official_store_area"
+    assert by_name["モリタウン"]["size_measurement_label"] == "公表店舗面積"
+    assert "GLA相当値" in by_name["モリタウン"]["size_measurement_note"]
+    assert {
+        mall["size_measurement_type"]
+        for name, mall in by_name.items()
+        if name != "モリタウン"
+    } == {"gross_leasable_area"}
+
+
+def test_map_analysis_conditions_use_payload_context() -> None:
+    target = _mall("target", "対象モール", 139.4, target=True)
+    html = build_map_html(
+        [_mesh("M_1", eligible=True, zone=True)],
+        target,
+        [_mall("competitor", "競合モール", 139.42)],
+        {
+            "analysis_radius_m": 10_000,
+            "mesh_size_m": 250,
+            "threshold": 42.5,
+            "population_survey_year": 2020,
+            "score_weights": {"huff_visit_probability": 0.2},
+        },
+    )
+    assert 'Number(c.analysis_radius_m||0)/1000' in html
+    assert "c.mesh_size_m||250" in html
+    assert "c.score_weights||{}" in html
+    assert "重みは統計的な正解値ではなく、現在の分析シナリオ" in html
+    assert "実来館確率ではありません" in html
 
 
 def test_map_html_generation_is_deterministic() -> None:

@@ -155,6 +155,28 @@ def test_smartphone_affinity_does_not_affect_score() -> None:
     assert sum(low.used_weights.values()) == pytest.approx(1.0)
 
 
+def test_score_contributions_sum_to_unchanged_score() -> None:
+    mesh = Mesh(
+        "contributions",
+        0,
+        0,
+        35,
+        139,
+        [],
+        population=100,
+        young_adult_ratio=0.3,
+        household_count=50,
+        huff_probability=0.6,
+        accessibility_index=0.7,
+        commercial_concentration_index=0.8,
+    )
+    calculate_potential([mesh])
+    score = mesh.acquisition_potential_score
+    assert score is not None
+    assert sum(mesh.score_contributions.values()) == pytest.approx(score, abs=0.01)
+    assert set(mesh.score_contributions) == set(mesh.used_features)
+
+
 def test_delivery_zone_ignores_missing_scores() -> None:
     meshes = [Mesh(str(i), 0, 0, 0, 0, [], acquisition_potential_score=score, eligible_for_delivery=score is not None) for i, score in enumerate([10.0, 20.0, 30.0, None])]
     threshold = assign_delivery_zones(meshes, 0.8)

@@ -15,6 +15,10 @@ class Mall:
     floor_area_m2: float
     attractiveness: float = 1.0
     app_value: str = "coupon"
+    size_measurement_type: str = "gross_leasable_area"
+    size_measurement_label: str = "GLA"
+    size_measurement_note: str = ""
+    facility_scope: str = ""
 
 
 class ValueStatus(StrEnum):
@@ -105,6 +109,7 @@ class Mesh:
     used_features: list[str] = field(default_factory=list)
     missing_features: list[str] = field(default_factory=list)
     used_weights: dict[str, float] = field(default_factory=dict)
+    score_contributions: dict[str, float] = field(default_factory=dict)
     score_method: str | None = None
     score_coverage: float | None = None
     score_quality_tier: str | None = None
