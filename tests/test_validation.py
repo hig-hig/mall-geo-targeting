@@ -76,6 +76,21 @@ def test_planner_scenario_is_explicitly_uncalibrated_and_display_only() -> None:
     assert validate_scenarios(root / "config/scenarios.yaml") == []
     assert scenario["scenario_metadata"]["calibration_status"] == "uncalibrated_scenario"
     assert scenario["transport_choice"]["score_integration"] == "display_only"
+    modes = scenario["transport_choice"]["modes"]
+    assert modes["car"]["beta"] == 2.0
+    assert modes["car"]["availability"]["type"] == "no_hard_limit"
+    assert modes["walk"]["beta"] == 2.5
+    assert modes["walk"]["availability"] == {
+        "type": "linear_decay",
+        "full_availability_until_m": 500,
+        "zero_availability_from_m": 2000,
+    }
+    assert modes["bike"]["beta"] == 2.2
+    assert modes["bike"]["availability"] == {
+        "type": "linear_decay",
+        "full_availability_until_m": 1000,
+        "zero_availability_from_m": 4000,
+    }
     assert scenario["facility_choice"]["existing_huff"]["minimum_distance_m"] == 1.0
     assert scenario["transport_mode_shares"]["enabled"] is False
 

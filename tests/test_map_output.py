@@ -337,6 +337,12 @@ def test_transport_scenario_context_is_displayed_without_score_integration() -> 
     assert payload["context"]["transport_choice"]["score_integration"] == "display_only"
     assert "未校正・表示専用" in html
     assert "交通手段割合は未実装" in html
+    assert "500mまで到達可能性100%、500m～2kmで段階減衰、2km以上を到達対象外とする未校正シナリオ" in html
+    assert "1kmまで到達可能性100%、1～4kmで段階減衰、4km以上を到達対象外とする未校正シナリオ" in html
+    assert "徒歩は1kmまで100%・4kmで0%" not in html
+    assert "自転車は3kmまで100%・10kmで0%" not in html
+    assert "mesh-transport-notes" in html
+    assert 'id="analysis-conditions"' in html
 
 
 def test_map_html_generation_is_deterministic() -> None:

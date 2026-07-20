@@ -32,8 +32,8 @@ transport_choice:
       minimum_distance_m: 1.0
       availability:
         type: linear_decay
-        full_availability_until_m: 1000
-        zero_availability_from_m: 4000
+        full_availability_until_m: 500
+        zero_availability_from_m: 2000
     bike:
       enabled: true
       label: 自転車・到達条件付き選択指数
@@ -41,8 +41,8 @@ transport_choice:
       minimum_distance_m: 1.0
       availability:
         type: linear_decay
-        full_availability_until_m: 3000
-        zero_availability_from_m: 10000
+        full_availability_until_m: 1000
+        zero_availability_from_m: 4000
 
 transport_mode_shares:
   calibration_status: uncalibrated_scenario

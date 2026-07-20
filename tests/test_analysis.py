@@ -119,17 +119,25 @@ def _transport_config() -> dict[str, object]:
     return {
         "modes": {
             "car": {"enabled": True, "beta": 2.0, "minimum_distance_m": 1.0, "availability": {"type": "no_hard_limit"}},
-            "walk": {"enabled": True, "beta": 2.5, "minimum_distance_m": 1.0, "availability": {"type": "linear_decay", "full_availability_until_m": 1000, "zero_availability_from_m": 4000}},
-            "bike": {"enabled": True, "beta": 2.2, "minimum_distance_m": 1.0, "availability": {"type": "linear_decay", "full_availability_until_m": 3000, "zero_availability_from_m": 10000}},
+            "walk": {"enabled": True, "beta": 2.5, "minimum_distance_m": 1.0, "availability": {"type": "linear_decay", "full_availability_until_m": 500, "zero_availability_from_m": 2000}},
+            "bike": {"enabled": True, "beta": 2.2, "minimum_distance_m": 1.0, "availability": {"type": "linear_decay", "full_availability_until_m": 1000, "zero_availability_from_m": 4000}},
         }
     }
 
 
 def test_mode_availability_boundaries_are_explicit_scenarios() -> None:
-    linear = {"type": "linear_decay", "full_availability_until_m": 1000, "zero_availability_from_m": 4000}
-    assert mode_availability(500, linear) == 1.0
-    assert mode_availability(2500, linear) == pytest.approx(0.5)
-    assert mode_availability(4000, linear) == 0.0
+    walk = {"type": "linear_decay", "full_availability_until_m": 500, "zero_availability_from_m": 2000}
+    assert mode_availability(499, walk) == 1.0
+    assert mode_availability(500, walk) == 1.0
+    assert mode_availability(1250, walk) == pytest.approx(0.5)
+    assert mode_availability(2000, walk) == 0.0
+    assert mode_availability(2001, walk) == 0.0
+    bike = {"type": "linear_decay", "full_availability_until_m": 1000, "zero_availability_from_m": 4000}
+    assert mode_availability(999, bike) == 1.0
+    assert mode_availability(1000, bike) == 1.0
+    assert mode_availability(2500, bike) == pytest.approx(0.5)
+    assert mode_availability(4000, bike) == 0.0
+    assert mode_availability(4001, bike) == 0.0
     assert mode_availability(100_000, {"type": "no_hard_limit"}) == 1.0
 
 
