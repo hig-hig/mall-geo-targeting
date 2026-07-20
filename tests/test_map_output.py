@@ -146,7 +146,7 @@ def test_map_summary_is_generated_from_meshes_and_handles_missing_values() -> No
     assert 'return"欠損"' in html
 
 
-def test_map_legend_uses_five_quantile_ranges_and_dynamic_threshold_note() -> None:
+def test_other_numeric_map_legends_keep_quantile_ranges_and_dynamic_threshold_note() -> None:
     target = _mall("target", "対象モール", 139.4, target=True)
     html = build_map_html(
         [_mesh(f"M_{index}", eligible=True, zone=index == 4) for index in range(5)],
@@ -162,6 +162,61 @@ def test_map_legend_uses_five_quantile_ranges_and_dynamic_threshold_note() -> No
     assert "データなし" in html
     assert 'note.hidden=active!=="score"' in html
     assert "配信適格メッシュ内の上位" in html
+
+
+def test_score_legend_uses_fixed_twenty_point_ranges_and_keeps_threshold_separate() -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("nodeが利用できないため境界値のJavaScript検査を省略")
+    target = _mall("target", "対象モール", 139.4, target=True)
+    map_display = {
+        "legend_method": "visible_mesh_quintiles",
+        "score_legend": {
+            "method": "fixed_score_intervals",
+            "boundaries": [0, 20, 40, 60, 80, 100],
+            "unit": "points",
+            "comparable_across_projects": True,
+        },
+    }
+    html = build_map_html(
+        [_mesh("M_1", eligible=True, zone=True)],
+        target,
+        [],
+        {
+            "mesh_size_m": 250,
+            "threshold": 33.7,
+            "delivery_quantile": 0.8,
+            "map_display": map_display,
+        },
+    )
+    payload = _payload(html)
+    function_body = html.split("function fixedIntervalClass", 1)[1].split(
+        "function fillFor", 1
+    )[0]
+    script = (
+        "function fixedIntervalClass"
+        + function_body
+        + "console.log(JSON.stringify([0,19.999,20,40,60,80,100].map("
+        + "value=>fixedIntervalClass(value,[0,20,40,60,80,100]))));"
+    )
+    result = subprocess.run(
+        [node, "-e", script], capture_output=True, check=False, text=True
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == [0, 0, 1, 2, 3, 4, 4]
+    assert payload["context"]["map_display"] == map_display
+    assert payload["summary"]["threshold"] == 33.7
+    assert 'fixedScore:true' in html
+    assert "metric.fixedScore?scoreBoundaries()" in html
+    assert "metric.fixedScore||metric.fixedChoice" in html
+    assert '`${lower}点以上～${b[i+1]}点${i===4?"以下":"未満"}`' in html
+    assert "総合スコアは0～100点を20点刻みで固定表示しています。" in html
+    assert "配信判定は別途、閾値" in html
+    assert 'metric.fixedChoice?"到達候補なし／No-data":"データなし"' in html
+    assert 'note.hidden=active!=="score"' in html
+    assert "配信ゾーン輪郭" in html
+    assert "必須データ条件" in html
 
 
 def test_choice_index_legend_uses_fixed_twenty_point_ranges() -> None:
@@ -194,7 +249,7 @@ def test_choice_index_legend_uses_fixed_twenty_point_ranges() -> None:
     assert '`${lower}%以上～${b[i+1]}%${i===4?"以下":"未満"}`' in html
     assert 'metric.fixedChoice?"到達候補なし／No-data":"データなし"' in html
     assert "[0,.2,.4,.6,.8,1]" in html
-    assert "if(metric.fixedChoice)n=fixedChoiceClass(v,b);else while" in html
+    assert "if(metric.fixedScore||metric.fixedChoice)n=fixedIntervalClass(v,b);else while" in html
 
 
 def test_map_explains_all_delivery_decision_patterns_and_score_contributions() -> None:
