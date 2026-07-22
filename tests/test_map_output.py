@@ -269,6 +269,46 @@ def test_choice_index_legend_uses_fixed_twenty_point_ranges() -> None:
     assert "if(metric.fixedScore||metric.fixedChoice)n=fixedIntervalClass(v,b);else while" in html
 
 
+def test_metric_buttons_put_facility_and_transport_choices_first() -> None:
+    target = _mall("target", "対象モール", 139.4, target=True)
+    html = build_map_html(
+        [_mesh("M_1", eligible=True, zone=False)],
+        target,
+        [],
+        {"mesh_size_m": 250},
+    )
+    expected = [
+        "score",
+        "facilityChoice",
+        "carChoice",
+        "bikeChoice",
+        "walkChoice",
+        "huff",
+        "population",
+        "accessibility",
+        "commercial",
+        "eligible",
+        "workingAge",
+        "roads",
+        "walkable",
+        "station",
+        "bus",
+        "parking",
+        "poi",
+        "retail",
+        "food",
+        "service",
+        "entertainment",
+        "office",
+    ]
+    raw_order = html.split("const METRIC_ORDER=", 1)[1].split(";", 1)[0]
+
+    assert json.loads(raw_order) == expected
+    assert "for(const id of METRIC_ORDER){const m=METRICS[id];" in html
+    assert 'facilityChoice={label:"施設選択相対指数",key:"facility_choice_index"' in html
+    assert 'huff:{label:"施設間選択確率（Huff）",key:"huff_probability"' in html
+
+
 def test_map_explains_all_delivery_decision_patterns_and_score_contributions() -> None:
     target = _mall("target", "対象モール", 139.4, target=True)
     html = build_map_html(
