@@ -126,7 +126,7 @@ def test_map_contains_metrics_controls_malls_and_sources() -> None:
     assert "実際の来店者や広告成果を直接示すものではありません" in html
     assert "未校正シナリオを含み" in html
     assert "配信可否を保証しません" in html
-    assert "手段別指数は表示専用" in html
+    assert 'replace("手段別指数は表示専用です。","")' in html
     assert "対象・競合施設を表示" in html
     assert 'mall.type==="target"?"対象施設":"競合施設"' in html
     assert "｜獲得ポテンシャル分析</title>" not in html
@@ -252,7 +252,7 @@ def test_choice_index_legend_uses_fixed_twenty_point_ranges() -> None:
     payload = _payload(html)
 
     assert payload["context"]["map_display"] == map_display
-    assert html.count("fixedChoice:true") == 4
+    assert html.count("fixedChoice:true") == 5
     assert 'key:"huff_probability",unit:"%",scale:100,digits:1,fixedChoice:true' in html
     for key in ("car_choice_index", "walk_choice_index", "bike_choice_index"):
         assert f'key:"{key}",unit:"%",scale:100,digits:1,fixedChoice:true' in html
@@ -390,3 +390,113 @@ def test_generated_javascript_has_valid_syntax() -> None:
     )
 
     assert result.returncode == 0, result.stderr
+
+
+def test_transport_weight_ui_uses_python_defaults_and_keeps_notice() -> None:
+    target = _mall("target", "対象モール", 139.4, target=True)
+    defaults = {"car": 0.60, "bike": 0.15, "walk": 0.25}
+    html = build_map_html(
+        [_mesh("M_1", eligible=True, zone=False)],
+        target,
+        [],
+        {"transport_mode_weights": defaults},
+    )
+    payload = _payload(html)
+
+    assert payload["context"]["transport_mode_weights"] == defaults
+    for identifier, label in (
+        ("weight-car", "自動車"),
+        ("weight-bike", "自転車"),
+        ("weight-walk", "徒歩"),
+    ):
+        assert f'id="{identifier}"' in html
+        assert label in html
+    assert 'min="0"' in html
+    assert "初期値に戻す" in html
+    assert "total<=0)return" in html
+    assert "交通手段の重みは実際の交通分担率ではなく、分析上の仮定値です。" in html
+    assert "施設周辺の商圏エリアを可視化" in html
+
+
+def test_browser_recalculation_contains_python_equivalent_missing_rules() -> None:
+    target = _mall("target", "対象モール", 139.4, target=True)
+    mesh = _mesh("M_1", eligible=True, zone=False)
+    mesh.facility_choice_index = 0.59
+    mesh.facility_choice_used_modes = ["car", "bike", "walk"]
+    mesh.facility_choice_used_weights = {"car": 0.6, "bike": 0.15, "walk": 0.25}
+    html = build_map_html(
+        [mesh],
+        target,
+        [],
+        {
+            "transport_mode_weights": {"car": 0.60, "bike": 0.15, "walk": 0.25},
+            "score_weights": {"facility_choice_index": 1.0},
+            "enabled_features": {"facility_choice_index": True},
+            "missing_policy": "renormalize",
+            "minimum_score_coverage": 0.4,
+            "required_feature_groups": {
+                "mall_relationship": {"require_all": ["facility_choice_index"]}
+            },
+            "delivery_quantile": 0.8,
+        },
+    )
+    payload = _payload(html)
+
+    assert "facility_choice_index" in payload["fields"]
+    assert "facility_choice_used_modes" in payload["fields"]
+    assert "facility_choice_used_weights" in payload["fields"]
+    assert "weight>0&&value!==null&&value!==undefined" in html
+    assert "modeWeight>0?availableModes.reduce" in html
+    assert "values[name]!==null&&values[name]!==undefined" in html
+    assert "m[I.acquisition_potential_score]=rounded" in html
+    assert "assign_delivery_zones" not in html
+
+
+def test_browser_recalculation_executes_null_renormalization_zero_and_score_update() -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("nodeが利用できないためブラウザ再計算検査を省略")
+    target = _mall("target", "対象モール", 139.4, target=True)
+    mesh = _mesh("M_1", eligible=True, zone=False)
+    mesh.car_choice_index = 0.0
+    mesh.bike_choice_index = 0.4
+    mesh.walk_choice_index = None
+    html = build_map_html(
+        [mesh],
+        target,
+        [],
+        {
+            "transport_mode_weights": {"car": 0.60, "bike": 0.15, "walk": 0.25},
+            "score_weights": {"facility_choice_index": 1.0},
+            "enabled_features": {"facility_choice_index": True},
+            "missing_policy": "renormalize",
+            "minimum_score_coverage": 0.4,
+            "required_feature_groups": {
+                "mall_relationship": {"require_all": ["facility_choice_index"]}
+            },
+            "delivery_quantile": 0.8,
+        },
+    )
+    payload = _payload(html)
+    functions = "function rounded" + html.split("function rounded", 1)[1].split(
+        "function setupWeightControls", 1
+    )[0]
+    script = (
+        f"const DATA={json.dumps(payload)};"
+        "const I=Object.fromEntries(DATA.fields.map((name,index)=>[name,index]));"
+        "const document={getElementById:()=>({textContent:''})};"
+        + functions
+        + "recalculateScores({car:.6,bike:.15,walk:.25});"
+        + "const m=DATA.meshes[0];console.log(JSON.stringify({"
+        + "choice:m[I.facility_choice_index],modes:m[I.facility_choice_used_modes],"
+        + "score:m[I.acquisition_potential_score]}));"
+    )
+    result = subprocess.run(
+        [node, "-e", script], capture_output=True, check=False, text=True
+    )
+
+    assert result.returncode == 0, result.stderr
+    calculated = json.loads(result.stdout)
+    assert calculated["choice"] == pytest.approx(0.08)
+    assert calculated["modes"] == ["car", "bike"]
+    assert calculated["score"] == pytest.approx(8.0)
