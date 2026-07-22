@@ -42,8 +42,8 @@ def _valid_html(*, robots_meta: str = "") -> str:
         f"<!doctype html><html><head><title>分析</title>{robots_meta}</head><body>"
         '<div class="basemap" id="basemap"></div>'
         '<canvas class="map-canvas" id="map"></canvas>'
-        "<h1>施設周辺の商圏と配信候補エリアを可視化</h1>"
-        "<p>商圏分析・配信エリア可視化ツール</p>"
+        "<h1>施設周辺の商圏エリアを可視化</h1>"
+        "<p>商圏エリア可視化ツール</p>"
         "<p>公開データと設定条件に基づく参考値</p>"
         "<p>イオンモールむさし村山</p><script>"
         f"const BASEMAPS={{}};const DATA={data};const I={{}};"
