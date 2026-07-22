@@ -77,7 +77,8 @@ def test_map_contains_metrics_controls_malls_and_sources() -> None:
     for label in (
         "総合スコア",
         "人口",
-        "施設相対選択指数",
+        "施設間選択確率（Huff）",
+        "施設選択相対指数",
         "車・到達条件付き選択指数",
         "徒歩・到達条件付き選択指数",
         "自転車・到達条件付き選択指数",
@@ -252,6 +253,9 @@ def test_choice_index_legend_uses_fixed_twenty_point_ranges() -> None:
     payload = _payload(html)
 
     assert payload["context"]["map_display"] == map_display
+    assert 'huff:{label:"施設間選択確率（Huff）",key:"huff_probability"' in html
+    assert 'METRICS.facilityChoice={label:"施設選択相対指数",key:"facility_choice_index"' in html
+    assert 'b.dataset.metric=id' in html
     assert html.count("fixedChoice:true") == 5
     assert 'key:"huff_probability",unit:"%",scale:100,digits:1,fixedChoice:true' in html
     for key in ("car_choice_index", "walk_choice_index", "bike_choice_index"):
@@ -502,3 +506,72 @@ def test_browser_recalculation_executes_null_renormalization_zero_and_score_upda
     assert calculated["choice"] == pytest.approx(0.08)
     assert calculated["modes"] == ["car", "bike"]
     assert calculated["score"] == pytest.approx(8.0)
+
+
+def test_browser_bike_only_facility_choice_colors_match_bike_metric() -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("nodeが利用できないためブラウザ色一致検査を省略")
+    target = _mall("target", "対象モール", 139.4, target=True)
+    meshes = [_mesh(f"M_{index}", eligible=True, zone=False) for index in range(3)]
+    for mesh, bike_value in zip(meshes, (0.0, 0.55, None), strict=True):
+        mesh.car_choice_index = 0.4
+        mesh.bike_choice_index = bike_value
+        mesh.walk_choice_index = None
+    html = build_map_html(
+        meshes,
+        target,
+        [],
+        {
+            "map_display": {
+                "choice_index_legend": {"boundaries": [0, 20, 40, 60, 80, 100]}
+            },
+            "transport_mode_weights": {"car": 0.60, "bike": 0.15, "walk": 0.25},
+            "score_weights": {"facility_choice_index": 1.0},
+            "enabled_features": {"facility_choice_index": True},
+            "missing_policy": "renormalize",
+            "minimum_score_coverage": 0.4,
+            "required_feature_groups": {
+                "mall_relationship": {"require_all": ["facility_choice_index"]}
+            },
+            "delivery_quantile": 0.8,
+        },
+    )
+    payload = _payload(html)
+    metric_code = "const METRICS=" + html.split("const METRICS=", 1)[1].split(
+        "const FEATURE_LABELS", 1
+    )[0]
+    value_code = "function val" + html.split("function val", 1)[1].split(
+        "function world", 1
+    )[0]
+    boundary_code = "function choiceBoundaries" + html.split(
+        "function choiceBoundaries", 1
+    )[1].split("function renderTiles", 1)[0]
+    recalculate_code = "function rounded" + html.split("function rounded", 1)[1].split(
+        "function setupWeightControls", 1
+    )[0]
+    script = (
+        f"const DATA={json.dumps(payload)};"
+        "const I=Object.fromEntries(DATA.fields.map((name,index)=>[name,index]));"
+        "let active='facilityChoice',onlyEligible=false,onlyZones=false,mapTheme='light';"
+        "const PALETTE=['#edf1ef','#c9dedb','#91c1bc','#4c9f98','#087f78'];"
+        "const DARK_PALETTE=PALETTE;"
+        "const document={getElementById:()=>({textContent:''})};"
+        + metric_code
+        + value_code
+        + boundary_code
+        + recalculate_code
+        + "recalculateScores({car:0,bike:1,walk:0});"
+        + "const facilityValues=DATA.meshes.map(m=>m[I.facility_choice_index]);"
+        + "const facilityColors=DATA.meshes.map(m=>fillFor(val(m),breaks()));"
+        + "active='bikeChoice';const bikeColors=DATA.meshes.map(m=>fillFor(val(m),breaks()));"
+        + "console.log(JSON.stringify({valuesMatch:DATA.meshes.every((m,index)=>"
+        + "facilityValues[index]===m[I.bike_choice_index]),"
+        + "colorsMatch:facilityColors.every((color,index)=>color===bikeColors[index])}));"
+    )
+    result = subprocess.run(
+        [node, "-e", script], capture_output=True, check=False, text=True
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {"valuesMatch": True, "colorsMatch": True}
