@@ -108,6 +108,9 @@ class Mesh:
     car_choice_index: float | None = None
     walk_choice_index: float | None = None
     bike_choice_index: float | None = None
+    facility_choice_index: float | None = None
+    facility_choice_used_modes: list[str] = field(default_factory=list)
+    facility_choice_used_weights: dict[str, float] = field(default_factory=dict)
     car_availability: float | None = None
     walk_availability: float | None = None
     bike_availability: float | None = None

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from mall_geo_targeting.analysis import assign_delivery_zones, calculate_huff, calculate_potential, calculate_transport_choice_indices, generate_meshes, join_population, mode_availability, resolve_required_feature_groups, score_quality_tier
+from mall_geo_targeting.analysis import assign_delivery_zones, calculate_facility_choice_indices, calculate_huff, calculate_potential, calculate_transport_choice_indices, generate_meshes, join_population, mode_availability, resolve_required_feature_groups, score_quality_tier
 from mall_geo_targeting.models import Mall, Mesh
 
 
@@ -175,14 +175,63 @@ def test_transport_choice_is_missing_when_no_mall_is_available() -> None:
     assert mesh.bike_availability == 0.0
 
 
+@pytest.mark.parametrize(
+    ("values", "expected", "modes", "used_weights"),
+    [
+        ((0.8, 0.4, 0.2), 0.59, ["car", "bike", "walk"], {"car": 0.6, "bike": 0.15, "walk": 0.25}),
+        ((0.8, 0.4, None), 0.72, ["car", "bike"], {"car": 0.8, "bike": 0.2}),
+        ((0.8, None, None), 0.8, ["car"], {"car": 1.0}),
+        ((0.0, 0.4, 0.2), 0.11, ["car", "bike", "walk"], {"car": 0.6, "bike": 0.15, "walk": 0.25}),
+    ],
+)
+def test_facility_choice_renormalizes_available_modes(
+    values: tuple[float | None, float | None, float | None],
+    expected: float,
+    modes: list[str],
+    used_weights: dict[str, float],
+) -> None:
+    mesh = Mesh("mesh", 0, 0, 35, 139, [], car_choice_index=values[0], bike_choice_index=values[1], walk_choice_index=values[2])
+    calculate_facility_choice_indices([mesh], {"car": 0.60, "bike": 0.15, "walk": 0.25})
+    assert mesh.facility_choice_index == pytest.approx(expected)
+    assert mesh.facility_choice_used_modes == modes
+    assert mesh.facility_choice_used_weights == pytest.approx(used_weights)
+
+
+def test_facility_choice_is_missing_when_all_modes_are_unavailable() -> None:
+    mesh = Mesh("mesh", 0, 0, 35, 139, [])
+    calculate_facility_choice_indices([mesh], {"car": 0.60, "bike": 0.15, "walk": 0.25})
+    assert mesh.facility_choice_index is None
+    assert mesh.facility_choice_used_modes == []
+    assert mesh.facility_choice_used_weights == {}
+
+
+def test_facility_choice_accepts_weights_that_do_not_sum_to_one() -> None:
+    mesh = Mesh("mesh", 0, 0, 35, 139, [], car_choice_index=0.2, bike_choice_index=0.4, walk_choice_index=0.8)
+    calculate_facility_choice_indices([mesh], {"car": 6, "bike": 1.5, "walk": 2.5})
+    assert mesh.facility_choice_index == pytest.approx(0.38)
+    assert sum(mesh.facility_choice_used_weights.values()) == pytest.approx(1.0)
+
+
+@pytest.mark.parametrize(
+    "weights",
+    [
+        {"car": -0.1, "bike": 0.5, "walk": 0.6},
+        {"car": 0.0, "bike": 0.0, "walk": 0.0},
+    ],
+)
+def test_facility_choice_rejects_invalid_weights(weights: dict[str, float]) -> None:
+    with pytest.raises(ValueError):
+        calculate_facility_choice_indices([], weights)
+
+
 def test_renormalize_scores_available_features_and_zero_is_observed() -> None:
-    zero = Mesh("zero", 0, 0, 35, 139, [], population=0, young_adult_ratio=0.0, smartphone_affinity=0.0, huff_probability=0.0)
-    missing = Mesh("missing", 0, 0, 35, 139, [], population=None, young_adult_ratio=0.2, smartphone_affinity=0.8, huff_probability=0.5)
+    zero = Mesh("zero", 0, 0, 35, 139, [], population=0, young_adult_ratio=0.0, smartphone_affinity=0.0, facility_choice_index=0.0)
+    missing = Mesh("missing", 0, 0, 35, 139, [], population=None, young_adult_ratio=0.2, smartphone_affinity=0.8, facility_choice_index=0.5)
     calculate_potential([zero, missing])
     assert zero.acquisition_potential_score == 0.0
     assert missing.acquisition_potential_score == 50.0
-    assert missing.used_features == ["huff_visit_probability"]
-    assert missing.used_weights == {"huff_visit_probability": 1.0}
+    assert missing.used_features == ["facility_choice_index"]
+    assert missing.used_weights == {"facility_choice_index": 1.0}
     assert missing.score_coverage == 0.20
     assert missing.score_quality_tier == "D"
     assert missing.feature_count_used == 1
@@ -190,8 +239,24 @@ def test_renormalize_scores_available_features_and_zero_is_observed() -> None:
     assert not missing.eligible_for_delivery
 
 
+def test_acquisition_potential_score_uses_facility_choice_instead_of_huff() -> None:
+    common = dict(
+        population=100,
+        young_adult_ratio=0.3,
+        household_count=50,
+        accessibility_index=0.7,
+        commercial_concentration_index=0.8,
+    )
+    low = Mesh("low", 0, 0, 35, 139, [], huff_probability=1.0, facility_choice_index=0.0, **common)
+    high = Mesh("high", 0, 0, 35, 139, [], huff_probability=0.0, facility_choice_index=1.0, **common)
+    calculate_potential([low, high])
+    assert high.acquisition_potential_score == pytest.approx(low.acquisition_potential_score + 20.0)
+    assert "facility_choice_index" in high.score_contributions
+    assert "huff_visit_probability" not in high.score_contributions
+
+
 def test_strict_mode_keeps_score_missing_when_an_enabled_feature_is_missing() -> None:
-    mesh = Mesh("missing", 0, 0, 35, 139, [], population=100, young_adult_ratio=0.2, huff_probability=0.5)
+    mesh = Mesh("missing", 0, 0, 35, 139, [], population=100, young_adult_ratio=0.2, facility_choice_index=0.5)
     calculate_potential([mesh], missing_policy="strict")
     assert mesh.acquisition_potential_score is None
     assert "accessibility_index" in mesh.missing_features
@@ -203,7 +268,7 @@ def test_smartphone_affinity_does_not_affect_score() -> None:
         population=100,
         young_adult_ratio=0.3,
         household_count=50,
-        huff_probability=0.6,
+        facility_choice_index=0.6,
         accessibility_index=0.7,
         commercial_concentration_index=0.8,
     )
@@ -226,7 +291,7 @@ def test_score_contributions_sum_to_unchanged_score() -> None:
         population=100,
         young_adult_ratio=0.3,
         household_count=50,
-        huff_probability=0.6,
+        facility_choice_index=0.6,
         accessibility_index=0.7,
         commercial_concentration_index=0.8,
     )
@@ -255,7 +320,7 @@ def test_coupon_demographics_and_huff_have_coverage_065() -> None:
         population=100,
         young_adult_ratio=0.3,
         household_count=50,
-        huff_probability=0.6,
+        facility_choice_index=0.6,
     )
     calculate_potential([mesh], app_value="coupon")
     assert mesh.score_coverage == 0.65
@@ -268,7 +333,7 @@ def test_coupon_demographics_and_huff_have_coverage_065() -> None:
 
 
 def test_huff_accessibility_and_commercial_without_demographics_is_not_eligible() -> None:
-    mesh = Mesh("no-demographics", 0, 0, 35, 139, [], huff_probability=0.7, accessibility_index=0.8, commercial_concentration_index=0.9)
+    mesh = Mesh("no-demographics", 0, 0, 35, 139, [], facility_choice_index=0.7, accessibility_index=0.8, commercial_concentration_index=0.9)
     calculate_potential([mesh], app_value="coupon")
     assert mesh.acquisition_potential_score is not None
     assert mesh.score_coverage == 0.55
@@ -279,7 +344,7 @@ def test_huff_accessibility_and_commercial_without_demographics_is_not_eligible(
 
 @pytest.mark.parametrize("context_values", [{"accessibility_index": 0.8}, {"commercial_concentration_index": 0.8}])
 def test_demographics_huff_and_either_context_can_be_eligible(context_values: dict[str, float]) -> None:
-    mesh = Mesh("eligible", 0, 0, 35, 139, [], population=100, young_adult_ratio=0.3, huff_probability=0.7, **context_values)
+    mesh = Mesh("eligible", 0, 0, 35, 139, [], population=100, young_adult_ratio=0.3, facility_choice_index=0.7, **context_values)
     calculate_potential([mesh], app_value="coupon")
     assert mesh.acquisition_potential_score is not None
     assert mesh.required_groups_missing == []
@@ -290,24 +355,24 @@ def test_demographics_huff_and_either_context_can_be_eligible(context_values: di
 def test_app_value_override_can_relax_demographic_group() -> None:
     base = {
         "demographic": {"require_any": ["target_age_population_index"]},
-        "mall_relationship": {"require_all": ["huff_visit_probability"]},
+        "mall_relationship": {"require_all": ["facility_choice_index"]},
         "context": {"require_any": ["accessibility_index"]},
     }
     overrides = {
         "parking": {
             "replace": True,
             "groups": {
-                "mall_relationship": {"require_all": ["huff_visit_probability"]},
+                "mall_relationship": {"require_all": ["facility_choice_index"]},
                 "context": {"require_any": ["accessibility_index"]},
             },
         }
     }
     groups = resolve_required_feature_groups(base, overrides, "parking")
-    mesh = Mesh("parking", 0, 0, 35, 139, [], huff_probability=0.7, accessibility_index=0.8)
+    mesh = Mesh("parking", 0, 0, 35, 139, [], facility_choice_index=0.7, accessibility_index=0.8)
     weights = {
         "target_age_population_index": 0.15,
         "household_composition_index": 0.20,
-        "huff_visit_probability": 0.20,
+        "facility_choice_index": 0.20,
         "accessibility_index": 0.35,
         "commercial_concentration_index": 0.10,
     }
@@ -317,7 +382,7 @@ def test_app_value_override_can_relax_demographic_group() -> None:
 
 
 def test_huff_only_score_is_auditable_but_never_a_delivery_zone() -> None:
-    huff_only = Mesh("huff", 0, 0, 35, 139, [], huff_probability=1.0)
+    huff_only = Mesh("facility-choice", 0, 0, 35, 139, [], facility_choice_index=1.0)
     complete = Mesh(
         "complete",
         0,
@@ -328,7 +393,7 @@ def test_huff_only_score_is_auditable_but_never_a_delivery_zone() -> None:
         population=100,
         young_adult_ratio=0.3,
         household_count=50,
-        huff_probability=0.5,
+        facility_choice_index=0.5,
         accessibility_index=0.5,
         commercial_concentration_index=0.5,
     )

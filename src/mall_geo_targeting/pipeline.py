@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from .analysis import assign_delivery_zones, calculate_huff, calculate_potential, calculate_transport_choice_indices, generate_meshes, join_estat_statistics, join_population, resolve_required_feature_groups
+from .analysis import assign_delivery_zones, calculate_facility_choice_indices, calculate_huff, calculate_potential, calculate_transport_choice_indices, generate_meshes, join_estat_statistics, join_population, resolve_required_feature_groups
 from .config import load_yaml, mall_from_dict
 from .commercial import calculate_commercial_concentration, load_commercial_geojson
 from .estat import load_estat_csv
@@ -91,6 +91,12 @@ def run(project_root: Path, data_mode: str | None = None, accessibility_mode: st
         float(analysis_config["huff_distance_exponent"]),
         float(existing_huff_scenario["minimum_distance_m"]),
     )
+    transport_choice_config = scenario_config["transport_choice"]
+    calculate_transport_choice_indices(meshes, target, competitors, transport_choice_config)
+    calculate_facility_choice_indices(
+        meshes,
+        scenario_config["facility_choice"]["transport_mode_weights"],
+    )
     presets = feature_config.get("presets", {})
     if target.app_value not in presets:
         raise ValueError(f"app_valueに対応する重みプリセットがありません: {target.app_value}")
@@ -109,8 +115,6 @@ def run(project_root: Path, data_mode: str | None = None, accessibility_mode: st
         required_feature_groups=required_groups,
     )
     threshold = assign_delivery_zones(meshes, float(analysis_config["high_score_quantile"]))
-    transport_choice_config = scenario_config["transport_choice"]
-    calculate_transport_choice_indices(meshes, target, competitors, transport_choice_config)
     retrieved_at = {
         "estat": _retrieved_at(project_root, data_sources["estat"])
         if selected_mode == "estat"

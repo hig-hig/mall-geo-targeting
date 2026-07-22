@@ -177,6 +177,7 @@ TRANSPORT_MODE_FIELDS = {
     "walk": ("walk_choice_index", "walk_availability"),
     "bike": ("bike_choice_index", "bike_availability"),
 }
+FACILITY_CHOICE_MODES = ("car", "bike", "walk")
 
 
 def mode_availability(distance_m: float, config: dict[str, object]) -> float:
@@ -248,17 +249,55 @@ def calculate_transport_choice_indices(
             setattr(mesh, availability_field, target_availability)
 
 
+def calculate_facility_choice_indices(
+    meshes: list[Mesh],
+    weights: dict[str, float],
+) -> None:
+    """Combine available transport indices using normalized scenario weights."""
+    if set(weights) != set(FACILITY_CHOICE_MODES):
+        raise ValueError("facility_choice.transport_mode_weightsにはcar、bike、walkが必要です")
+    normalized_input: dict[str, float] = {}
+    for mode in FACILITY_CHOICE_MODES:
+        weight = float(weights[mode])
+        if not math.isfinite(weight) or weight < 0:
+            raise ValueError(f"facility_choice.transport_mode_weights.{mode}は0以上の有限値が必要です")
+        normalized_input[mode] = weight
+    if sum(normalized_input.values()) <= 0:
+        raise ValueError("facility_choice.transport_mode_weightsの重みを1つ以上正数にしてください")
+
+    for mesh in meshes:
+        available = [
+            (mode, float(getattr(mesh, TRANSPORT_MODE_FIELDS[mode][0])), normalized_input[mode])
+            for mode in FACILITY_CHOICE_MODES
+            if getattr(mesh, TRANSPORT_MODE_FIELDS[mode][0]) is not None
+            and normalized_input[mode] > 0
+        ]
+        available_weight = sum(weight for _, _, weight in available)
+        mesh.facility_choice_used_modes = [mode for mode, _, _ in available]
+        if available_weight <= 0:
+            mesh.facility_choice_index = None
+            mesh.facility_choice_used_weights = {}
+            continue
+        mesh.facility_choice_used_weights = {
+            mode: weight / available_weight for mode, _, weight in available
+        }
+        mesh.facility_choice_index = sum(
+            value * mesh.facility_choice_used_weights[mode]
+            for mode, value, _ in available
+        )
+
+
 SCORE_FEATURES = (
     "target_age_population_index",
     "household_composition_index",
-    "huff_visit_probability",
+    "facility_choice_index",
     "accessibility_index",
     "commercial_concentration_index",
 )
 
 DEFAULT_REQUIRED_FEATURE_GROUPS: dict[str, dict[str, list[str]]] = {
     "demographic": {"require_any": ["target_age_population_index", "household_composition_index"]},
-    "mall_relationship": {"require_all": ["huff_visit_probability"]},
+    "mall_relationship": {"require_all": ["facility_choice_index"]},
     "context": {"require_any": ["accessibility_index", "commercial_concentration_index"]},
 }
 
@@ -332,7 +371,7 @@ def calculate_potential(
     selected_weights = weights or {
         "target_age_population_index": 0.30,
         "household_composition_index": 0.15,
-        "huff_visit_probability": 0.20,
+        "facility_choice_index": 0.20,
         "accessibility_index": 0.15,
         "commercial_concentration_index": 0.20,
     }
@@ -375,7 +414,7 @@ def calculate_potential(
         feature_values = {
             "target_age_population_index": mesh.target_age_population_index,
             "household_composition_index": mesh.household_composition_index,
-            "huff_visit_probability": mesh.huff_probability,
+            "facility_choice_index": mesh.facility_choice_index,
             "accessibility_index": mesh.accessibility_index,
             "commercial_concentration_index": mesh.commercial_concentration_index,
         }

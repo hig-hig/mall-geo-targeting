@@ -502,6 +502,18 @@ def validate_scenarios(path: Path) -> list[ValidationIssue]:
     else:
         if minimum_huff_distance <= 0:
             _issue(issues, "ERROR", "scenarios", "既存Huffのminimum_distance_mは正数が必要です")
+    try:
+        mode_weights = config["facility_choice"]["transport_mode_weights"]
+        if not isinstance(mode_weights, dict) or set(mode_weights) != {"car", "bike", "walk"}:
+            raise ValueError
+        parsed_weights = [float(mode_weights[mode]) for mode in ("car", "bike", "walk")]
+    except (KeyError, TypeError, ValueError):
+        _issue(issues, "ERROR", "scenarios", "施設選択相対指数の交通手段重みが不正です")
+    else:
+        if any(not math.isfinite(weight) or weight < 0 for weight in parsed_weights):
+            _issue(issues, "ERROR", "scenarios", "施設選択相対指数の交通手段重みは0以上の有限値が必要です")
+        elif sum(parsed_weights) <= 0:
+            _issue(issues, "ERROR", "scenarios", "施設選択相対指数の交通手段重みを1つ以上正数にしてください")
     return issues
 
 

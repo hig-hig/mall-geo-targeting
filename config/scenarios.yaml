@@ -51,6 +51,10 @@ transport_mode_shares:
   note: 地域別交通手段割合は別概念として将来実装する
 
 facility_choice:
+  transport_mode_weights:
+    car: 0.60
+    bike: 0.15
+    walk: 0.25
   existing_huff:
     beta_source: config/analysis.yaml
     minimum_distance_m: 1.0

@@ -92,6 +92,11 @@ def test_planner_scenario_is_explicitly_uncalibrated_and_display_only() -> None:
         "zero_availability_from_m": 4000,
     }
     assert scenario["facility_choice"]["existing_huff"]["minimum_distance_m"] == 1.0
+    assert scenario["facility_choice"]["transport_mode_weights"] == {
+        "car": 0.60,
+        "bike": 0.15,
+        "walk": 0.25,
+    }
     assert scenario["transport_mode_shares"]["enabled"] is False
 
 
@@ -113,6 +118,26 @@ def test_validator_rejects_nonpositive_huff_minimum_distance(tmp_path: Path) -> 
     path.write_text(yaml.safe_dump(scenario, allow_unicode=True), encoding="utf-8")
     issues = validate_scenarios(path)
     assert any("既存Huffのminimum_distance_mは正数" in issue.message for issue in issues)
+
+
+def test_validator_rejects_negative_facility_choice_weight(tmp_path: Path) -> None:
+    root = Path(__file__).parents[1]
+    scenario = load_yaml(root / "config/scenarios.yaml")
+    scenario["facility_choice"]["transport_mode_weights"]["walk"] = -0.1
+    path = tmp_path / "scenarios.yaml"
+    path.write_text(yaml.safe_dump(scenario, allow_unicode=True), encoding="utf-8")
+    issues = validate_scenarios(path)
+    assert any("交通手段重みは0以上" in issue.message for issue in issues)
+
+
+def test_validator_rejects_all_zero_facility_choice_weights(tmp_path: Path) -> None:
+    root = Path(__file__).parents[1]
+    scenario = load_yaml(root / "config/scenarios.yaml")
+    scenario["facility_choice"]["transport_mode_weights"] = {"car": 0, "bike": 0, "walk": 0}
+    path = tmp_path / "scenarios.yaml"
+    path.write_text(yaml.safe_dump(scenario, allow_unicode=True), encoding="utf-8")
+    issues = validate_scenarios(path)
+    assert any("1つ以上正数" in issue.message for issue in issues)
 
 
 def test_unverified_candidate_cannot_be_registered(tmp_path: Path) -> None:
