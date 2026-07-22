@@ -414,6 +414,8 @@ def test_transport_weight_ui_uses_python_defaults_and_keeps_notice() -> None:
     assert 'min="0"' in html
     assert "初期値に戻す" in html
     assert "total<=0)return" in html
+    assert "recalculateScores(weights);breakCache=null;draw();if(selected)showMesh(selected)" in html
+    assert "if(selected)showMesh(selected);else draw()" not in html
     assert "交通手段の重みは実際の交通分担率ではなく、分析上の仮定値です。" in html
     assert "施設周辺の商圏エリアを可視化" in html
 
