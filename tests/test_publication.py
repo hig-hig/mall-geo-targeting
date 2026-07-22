@@ -42,7 +42,10 @@ def _valid_html(*, robots_meta: str = "") -> str:
         f"<!doctype html><html><head><title>分析</title>{robots_meta}</head><body>"
         '<div class="basemap" id="basemap"></div>'
         '<canvas class="map-canvas" id="map"></canvas>'
-        "<h1>イオンモールむさし村山</h1><script>"
+        "<h1>施設周辺の商圏と配信候補エリアを可視化</h1>"
+        "<p>商圏分析・配信エリア可視化ツール</p>"
+        "<p>公開データと設定条件に基づく参考値</p>"
+        "<p>イオンモールむさし村山</p><script>"
         f"const BASEMAPS={{}};const DATA={data};const I={{}};"
         "</script></body></html>"
     )
@@ -67,6 +70,7 @@ def test_valid_real_data_html_is_copied_with_noindex(publication_directory: Path
     assert source.read_text(encoding="utf-8") == source_html
     assert size == len(published_html.encode())
     assert "実行モード: estat + osm + osm" in checks
+    assert "公開文言: 汎用施設向け" in checks
     assert "検索エンジン: noindex" in checks
     assert destination.stat().st_mode & 0o777 == 0o644
 

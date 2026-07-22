@@ -27,6 +27,11 @@ CANVAS_MARKERS = (
     "const DATA=",
     ";const I=",
 )
+PUBLIC_TEXT_MARKERS = (
+    "商圏分析・配信エリア可視化ツール",
+    "施設周辺の商圏と配信候補エリアを可視化",
+    "公開データと設定条件に基づく参考値",
+)
 REAL_DATA_MODES = {
     "data_mode": "estat",
     "accessibility_mode": "osm",
@@ -81,6 +86,11 @@ def validate_map_html(source: Path) -> tuple[bytes, list[str]]:
         raise PublicationValidationError(
             f"Canvas版の識別子が不足しています: {', '.join(missing_canvas_markers)}"
         )
+    missing_public_text = [marker for marker in PUBLIC_TEXT_MARKERS if marker not in html]
+    if missing_public_text:
+        raise PublicationValidationError(
+            f"公開ページの汎用文言が不足しています: {', '.join(missing_public_text)}"
+        )
 
     payload = _map_payload(html)
     context = payload.get("context")
@@ -99,6 +109,7 @@ def validate_map_html(source: Path) -> tuple[bytes, list[str]]:
         f"対象施設: {TARGET_MALL_NAME}",
         "サンプル施設: なし",
         "地図実装: Canvas版",
+        "公開文言: 汎用施設向け",
         "実行モード: estat + osm + osm",
     ]
 

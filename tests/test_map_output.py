@@ -117,6 +117,17 @@ def test_map_contains_metrics_controls_malls_and_sources() -> None:
     assert 'b.onclick=()=>{active=id;breakCache=null' in html
     assert 'b.onclick=()=>setTheme(b.dataset.theme)' in html
     assert "https://a.basemaps.cartocdn.com/" in html
+    assert "<title>商圏分析・配信エリア可視化ツール</title>" in html
+    assert "施設周辺の商圏と配信候補エリアを可視化" in html
+    assert "人口、競合施設、周辺環境、交通手段などの公開データと設定条件をもとに" in html
+    assert "公開データと設定条件に基づく参考値" in html
+    assert "実際の来店者や広告成果を直接示すものではありません" in html
+    assert "未校正シナリオを含み" in html
+    assert "配信可否を保証しません" in html
+    assert "手段別指数は表示専用" in html
+    assert "対象・競合施設を表示" in html
+    assert 'mall.type==="target"?"対象施設":"競合施設"' in html
+    assert "｜獲得ポテンシャル分析</title>" not in html
 
 
 def test_map_summary_is_generated_from_meshes_and_handles_missing_values() -> None:
